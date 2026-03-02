@@ -3,8 +3,8 @@
 import { PluginCard, PluginData } from '@/components/PluginCard';
 import { PluginGrid } from '@/components/PluginGrid';
 import { useState, useMemo } from 'react';
-import { Select, makeStyles, tokens, Text, Input } from '@fluentui/react-components';
-import { SearchRegular } from '@fluentui/react-icons';
+import { Button, makeStyles, tokens, Text, Input } from '@fluentui/react-components';
+import { SearchRegular, ArrowUpRegular, ArrowDownRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 
 const useStyles = makeStyles({
@@ -45,23 +45,36 @@ const useStyles = makeStyles({
             minWidth: '100%',
         }
     },
-    select: {
-        minWidth: '140px',
+    sortGroup: {
+        display: 'flex',
+        gap: '4px',
+        alignItems: 'center',
+        padding: '3px',
+        backgroundColor: tokens.colorNeutralBackground2,
         borderRadius: tokens.borderRadiusLarge,
-        transition: 'border-color 160ms ease, box-shadow 160ms ease',
-        ':hover': {
-            border: `1px solid ${tokens.colorBrandStroke1}`,
-            boxShadow: tokens.shadow4,
-        }
     },
+    sortButton: {
+        borderRadius: tokens.borderRadiusMedium,
+        transition: 'all 0.15s ease-in-out',
+    }
 });
 
 export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
     const styles = useStyles();
     const t = useTranslations('Index');
     const [sortMethod, setSortMethod] = useState<'name' | 'downloads' | 'stars'>('downloads');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [search, setSearch] = useState('');
-    const animationVersion = `${sortMethod}::${search.trim().toLowerCase() || 'all'}`;
+    const animationVersion = `${sortMethod}::${sortOrder}::${search.trim().toLowerCase() || 'all'}`;
+
+    const handleSortChange = (method: 'name' | 'downloads' | 'stars') => {
+        if (sortMethod === method) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortMethod(method);
+            setSortOrder(method === 'name' ? 'asc' : 'desc');
+        }
+    };
 
     const filteredPlugins = useMemo(() => {
         const keyword = search.trim().toLowerCase();
@@ -81,16 +94,18 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
     const sortedPlugins = useMemo(() => {
         const copy = [...filteredPlugins];
         copy.sort((a, b) => {
+            let result = 0;
             if (sortMethod === 'downloads') {
-                return b.DownloadCount - a.DownloadCount;
+                result = a.DownloadCount - b.DownloadCount;
             } else if (sortMethod === 'stars') {
-                return b.StarsCount - a.StarsCount;
+                result = a.StarsCount - b.StarsCount;
             } else {
-                return a.Manifest.Name.localeCompare(b.Manifest.Name);
+                result = a.Manifest.Name.localeCompare(b.Manifest.Name);
             }
+            return sortOrder === 'asc' ? result : -result;
         });
         return copy;
-    }, [filteredPlugins, sortMethod]);
+    }, [filteredPlugins, sortMethod, sortOrder]);
 
     return (
         <div>
@@ -105,21 +120,38 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
                     />
                     <div className={styles.toolbarRight}>
                         <Text weight="semibold" size={300}>{t('sortBy')}</Text>
-                        <Select
-                            id="sort-select"
-                            value={sortMethod}
-                            onChange={(_, data) => {
-                                const value = data.value;
-                                if (value === 'name' || value === 'downloads' || value === 'stars') {
-                                    setSortMethod(value);
-                                }
-                            }}
-                            className={styles.select}
-                        >
-                            <option value="downloads">{t('sortDownloads')}</option>
-                            <option value="stars">{t('sortStars')}</option>
-                            <option value="name">{t('sortName')}</option>
-                        </Select>
+                        <div className={styles.sortGroup}>
+                            <Button
+                                appearance={sortMethod === 'downloads' ? 'secondary' : 'subtle'}
+                                iconPosition="after"
+                                icon={sortMethod === 'downloads' ? (sortOrder === 'asc' ? <ArrowUpRegular fontSize={16} /> : <ArrowDownRegular fontSize={16} />) : undefined}
+                                onClick={() => handleSortChange('downloads')}
+                                className={styles.sortButton}
+                                size="small"
+                            >
+                                {t('sortDownloads')}
+                            </Button>
+                            <Button
+                                appearance={sortMethod === 'stars' ? 'secondary' : 'subtle'}
+                                iconPosition="after"
+                                icon={sortMethod === 'stars' ? (sortOrder === 'asc' ? <ArrowUpRegular fontSize={16} /> : <ArrowDownRegular fontSize={16} />) : undefined}
+                                onClick={() => handleSortChange('stars')}
+                                className={styles.sortButton}
+                                size="small"
+                            >
+                                {t('sortStars')}
+                            </Button>
+                            <Button
+                                appearance={sortMethod === 'name' ? 'secondary' : 'subtle'}
+                                iconPosition="after"
+                                icon={sortMethod === 'name' ? (sortOrder === 'asc' ? <ArrowUpRegular fontSize={16} /> : <ArrowDownRegular fontSize={16} />) : undefined}
+                                onClick={() => handleSortChange('name')}
+                                className={styles.sortButton}
+                                size="small"
+                            >
+                                {t('sortName')}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>

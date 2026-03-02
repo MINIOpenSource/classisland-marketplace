@@ -228,6 +228,7 @@ const useStyles = makeStyles({
 export interface PluginData {
     DownloadUrl: string;
     LocalDownloadUrl?: string;
+    LocalReadmeUrl?: string;
     DownloadCount: number;
     StarsCount: number;
     FileSize?: number;
@@ -353,7 +354,22 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                     const img = new Image();
                     img.src = iconSrc;
                 }
-                if (Manifest.Readme) {
+                if (plugin.LocalReadmeUrl) {
+                    fetch(plugin.LocalReadmeUrl)
+                        .then(res => res.text())
+                        .then(text => {
+                            const mdRegex = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+                            const htmlRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+                            let match;
+                            while ((match = mdRegex.exec(text)) !== null) {
+                                if (match[1]) new Image().src = match[1];
+                            }
+                            while ((match = htmlRegex.exec(text)) !== null) {
+                                if (match[1]) new Image().src = match[1];
+                            }
+                        })
+                        .catch(() => { });
+                } else if (Manifest.Readme) {
                     fetch(Manifest.Readme, { mode: 'no-cors' }).catch(() => { });
                 }
                 setIsHovering(true);

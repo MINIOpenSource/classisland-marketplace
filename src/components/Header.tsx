@@ -32,6 +32,9 @@ const useStyles = makeStyles({
         zIndex: 1000,
         borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
         backdropFilter: 'blur(10px)',
+        '@media (max-width: 600px)': {
+            padding: '0 16px',
+        }
     },
     actions: {
         display: 'flex',
@@ -42,8 +45,27 @@ const useStyles = makeStyles({
         alignItems: 'center',
         gap: '12px',
     },
+    titleText: {
+        fontSize: '24px',
+        margin: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        '@media (max-width: 600px)': {
+            fontSize: '18px',
+            gap: '6px',
+        },
+        '@media (max-width: 400px)': {
+            fontSize: '16px',
+            gap: '4px',
+        }
+    },
     logoAvatar: {
         boxShadow: tokens.shadow8,
+        flexShrink: 0
     },
     actionButton: {
         borderRadius: tokens.borderRadiusLarge,
@@ -68,9 +90,9 @@ export function Header() {
         <header className={styles.header}>
             <div className={styles.titleWrap}>
                 <Avatar className={styles.logoAvatar} image={{ src: '/favicon.ico' }} name="ClassIsland" shape="square" size={32} />
-                <Title1 as="h1" style={{ fontSize: '24px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    ClassIsland Marketplace
-                    <Badge appearance="tint" shape="rounded" color="brand" style={{ fontSize: '14px', paddingTop: '2px' }}>{t('preview')}</Badge>
+                <Title1 as="h1" className={styles.titleText}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>ClassIsland Marketplace</span>
+                    <Badge appearance="tint" shape="rounded" color="brand" style={{ fontSize: '12px', paddingTop: '2px', flexShrink: 0 }}>{t('preview')}</Badge>
                 </Title1>
             </div>
             <div className={styles.actions}>

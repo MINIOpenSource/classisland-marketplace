@@ -45,3 +45,5 @@ next-env.d.ts
 /.plugin-cache/
 /public/icons/
 /public/cipx/
+/public/readme-images/
+/public/readmes/

@@ -25,7 +25,12 @@
         "copyId": "复制插件 ID",
         "copied": "已复制",
         "anonymous": "无名氏",
-        "allLoaded": "您已经浏览完全部的 {count} 个插件了"
+        "allLoaded": "您已经浏览完全部的 {count} 个插件了",
+        "externalLinkWarningTitle": "即将离开 Marketplace",
+        "externalLinkWarningContent": "您即将离开 ClassIsland Marketplace 并访问以下链接：",
+        "externalLinkWarningConfirm": "请确认此链接的安全性。",
+        "cancel": "取消",
+        "confirm": "继续访问"
     },
     "NotFound": {
         "code": "404",

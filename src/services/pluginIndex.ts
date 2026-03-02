@@ -1,12 +1,14 @@
 import AdmZip from 'adm-zip';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 const CACHE_DIR = path.join(process.cwd(), '.plugin-cache');
 const CACHE_JSON = path.join(CACHE_DIR, 'index.json');
 const ICON_DIR = path.join(process.cwd(), 'public', 'icons');
 const CIPX_DIR = path.join(process.cwd(), 'public', 'cipx');
-const README_DIR = path.join(CACHE_DIR, 'readmes');
+const README_IMAGE_DIR = path.join(process.cwd(), 'public', 'readme-images');
+const README_DIR = path.join(process.cwd(), 'public', 'readmes');
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 function ensureDir(dir: string) {
@@ -106,25 +108,89 @@ function attachCachedCipxUrls(data: unknown) {
 }
 
 /**
- * Download and cache a plugin README markdown file.
+ * Extract image URLs from markdown text and cache them locally.
+ * Returns the modified markdown text with local image URLs.
  */
-async function cacheReadme(pluginId: string, readmeUrl: string): Promise<void> {
+async function processReadmeImages(pluginId: string, text: string, readmeUrl: string): Promise<string> {
+    ensureDir(README_IMAGE_DIR);
+
+    let modifiedText = text;
+    const imageUrls = new Set<string>();
+
+    const mdImageRegex = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+    const htmlImageRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+
+    let match;
+    while ((match = mdImageRegex.exec(text)) !== null) {
+        if (match[1]) imageUrls.add(match[1]);
+    }
+    while ((match = htmlImageRegex.exec(text)) !== null) {
+        if (match[1]) imageUrls.add(match[1]);
+    }
+
+    for (const originalUrl of imageUrls) {
+        try {
+            if (originalUrl.startsWith('data:')) continue;
+
+            // Handle relative paths using readmeUrl as base URL
+            const absoluteUrl = new URL(originalUrl, readmeUrl).href;
+
+            const hash = crypto.createHash('md5').update(absoluteUrl).digest('hex').substring(0, 8);
+            const extMatch = new URL(absoluteUrl).pathname.match(/\.[^.]+$/);
+            const ext = extMatch ? extMatch[0] : '.png';
+            const safeId = toSafePluginId(pluginId);
+            const filename = `${safeId}_${hash}${ext}`;
+            const filePath = path.join(README_IMAGE_DIR, filename);
+
+            if (!fs.existsSync(filePath)) {
+                // To avoid long hangs if remote server is slow, but we expect standard fetch to work
+                const res = await fetch(absoluteUrl);
+                if (res.ok) {
+                    const buf = Buffer.from(await res.arrayBuffer());
+                    fs.writeFileSync(filePath, buf);
+                } else {
+                    console.warn(`[processReadmeImages] Failed to fetch image ${absoluteUrl}: ${res.statusText}`);
+                    continue;
+                }
+            }
+
+            const localUrl = `/readme-images/${filename}`;
+            modifiedText = modifiedText.split(originalUrl).join(localUrl);
+        } catch (e) {
+            console.warn(`[processReadmeImages] Failed to process image ${originalUrl} for ${pluginId}:`, e);
+        }
+    }
+
+    return modifiedText;
+}
+
+/**
+ * Download and cache a plugin README markdown file.
+ * Returns the local filename if successful.
+ */
+async function cacheReadme(pluginId: string, readmeUrl: string): Promise<string | null> {
     ensureDir(README_DIR);
     const safeId = toSafePluginId(pluginId);
-    const filePath = path.join(README_DIR, `${safeId}.md`);
+    const filename = `${safeId}.md`;
+    const filePath = path.join(README_DIR, filename);
 
     // If already cached, skip download
     if (fs.existsSync(filePath)) {
-        return;
+        return filename;
     }
 
     try {
         const res = await fetch(readmeUrl);
-        if (!res.ok) return;
-        const text = await res.text();
+        if (!res.ok) return null;
+        let text = await res.text();
+
+        text = await processReadmeImages(pluginId, text, readmeUrl);
+
         fs.writeFileSync(filePath, text, 'utf-8');
+        return filename;
     } catch (e) {
         console.warn(`Failed to cache README for ${pluginId}:`, e);
+        return null;
     }
 }
 
@@ -207,7 +273,11 @@ export async function getPluginIndex() {
             // Cache README
             if (plugin.Manifest?.Readme && plugin.Manifest?.Id) {
                 cachePromises.push(
-                    cacheReadme(plugin.Manifest.Id, plugin.Manifest.Readme).then(() => { })
+                    cacheReadme(plugin.Manifest.Id, plugin.Manifest.Readme).then((filename) => {
+                        if (filename) {
+                            plugin.LocalReadmeUrl = `/readmes/${filename}`;
+                        }
+                    })
                 );
             }
 

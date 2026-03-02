@@ -7,7 +7,13 @@ import {
     Text,
     Button,
     Avatar,
-    Tooltip
+    Tooltip,
+    Dialog,
+    DialogSurface,
+    DialogTitle,
+    DialogBody,
+    DialogActions,
+    DialogContent
 } from '@fluentui/react-components';
 import { ArrowDownloadRegular, StarRegular, ArrowLeftRegular, OpenRegular, CopyRegular, CheckmarkRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
@@ -179,6 +185,22 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
         return () => clearTimeout(timer);
     }, []);
     const [copied, setCopied] = useState(false);
+    const [confirmLink, setConfirmLink] = useState<string | null>(null);
+
+    const handleLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        const target = (e.target as HTMLElement).closest('a');
+        if (target && target.href) {
+            try {
+                const url = new URL(target.href);
+                if (url.hostname !== window.location.hostname && url.protocol.startsWith('http')) {
+                    e.preventDefault();
+                    setConfirmLink(target.href);
+                }
+            } catch (error) {
+                // Ignore invalid URLs
+            }
+        }
+    };
 
     const { Manifest, DownloadCount, StarsCount, RealIconPath, FileSize, CachedIconFile } = plugin;
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
@@ -311,7 +333,7 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
                 </div>
             </div>
 
-            <div className={styles.readme} style={{ padding: 0, overflow: 'hidden' }}>
+            <div className={styles.readme} style={{ padding: 0, overflow: 'hidden' }} onClick={handleLinkClick}>
                 {readmeContent ? (
                     <MarkdownPreview
                         source={readmeContent}
@@ -323,6 +345,32 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
                     </div>
                 )}
             </div>
+
+            <Dialog open={confirmLink !== null} onOpenChange={(_, data) => !data.open && setConfirmLink(null)}>
+                <DialogSurface>
+                    <DialogBody>
+                        <DialogTitle>{t('externalLinkWarningTitle')}</DialogTitle>
+                        <DialogContent>
+                            <Text>{t('externalLinkWarningContent')}</Text>
+                            <br /><br />
+                            <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium }}>
+                                {confirmLink}
+                            </div>
+                            <br />
+                            <Text>{t('externalLinkWarningConfirm')}</Text>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button appearance="secondary" onClick={() => setConfirmLink(null)}>{t('cancel')}</Button>
+                            <Button appearance="primary" onClick={() => {
+                                if (confirmLink) {
+                                    window.open(confirmLink, '_blank', 'noopener,noreferrer');
+                                    setConfirmLink(null);
+                                }
+                            }}>{t('confirm')}</Button>
+                        </DialogActions>
+                    </DialogBody>
+                </DialogSurface>
+            </Dialog>
         </div>
     );
 }

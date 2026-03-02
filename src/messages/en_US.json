@@ -25,7 +25,12 @@
         "copyId": "Copy Plugin ID",
         "copied": "Copied",
         "anonymous": "Anonymous",
-        "allLoaded": "You have browsed all {count} plugins"
+        "allLoaded": "You have browsed all {count} plugins",
+        "externalLinkWarningTitle": "Leaving Marketplace",
+        "externalLinkWarningContent": "You are about to leave ClassIsland Marketplace and visit the following link:",
+        "externalLinkWarningConfirm": "Please ensure the safety of this link.",
+        "cancel": "Cancel",
+        "confirm": "Continue"
     },
     "NotFound": {
         "code": "404",
