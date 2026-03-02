@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 
 let buildHash = 'unknown';
 try {
-    buildHash = process.env.CF_PAGES_COMMIT_SHA || execSync('git rev-parse --short HEAD').toString().trim();
+    buildHash = process.env.CF_PAGES_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || execSync('git rev-parse --short HEAD').toString().trim();
 } catch { }
 
 const nextConfig = {
@@ -12,6 +12,7 @@ const nextConfig = {
         BUILD_TIME: new Date().toISOString(),
         BUILD_HASH: buildHash,
         CF_PAGES: process.env.CF_PAGES || '',
+        VERCEL: process.env.VERCEL || '',
         IS_DEV: process.env.NODE_ENV === 'development' ? 'true' : 'false'
     },
     experimental: {

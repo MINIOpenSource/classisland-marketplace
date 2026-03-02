@@ -34,6 +34,7 @@ export function Footer() {
     const styles = useStyles();
     const isDev = process.env.IS_DEV === 'true';
     const isCFPages = process.env.CF_PAGES === '1' || process.env.CF_PAGES === 'true';
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
     const buildHash = process.env.BUILD_HASH;
     const buildTime = process.env.BUILD_TIME;
 
@@ -56,6 +57,11 @@ export function Footer() {
             {isCFPages && (
                 <Text size={200} className={styles.info}>
                     Deployed on Cloudflare Pages
+                </Text>
+            )}
+            {isVercel && (
+                <Text size={200} className={styles.info}>
+                    Deployed on Vercel
                 </Text>
             )}
         </footer>
