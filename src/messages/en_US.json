@@ -1,0 +1,38 @@
+{
+    "Index": {
+        "title": "ClassIsland Marketplace",
+        "preview": "Preview",
+        "description": "Discover and download plugins for ClassIsland",
+        "searchPlaceholder": "Search plugins by name or ID...",
+        "plugins": "Plugins",
+        "themes": "Themes",
+        "themeToggled": "Theme switched",
+        "author": "Author",
+        "version": "Version",
+        "downloads": "Downloads",
+        "stars": "Stars",
+        "download": "Download",
+        "install": "Install in ClassIsland",
+        "learnMore": "Learn More",
+        "requiresWindows": "Requires Windows to install",
+        "back": "Back",
+        "sortBy": "Sort by:",
+        "sortDownloads": "Downloads",
+        "sortStars": "Stars",
+        "sortName": "Name",
+        "openInGitHub": "Open in GitHub",
+        "details": "Details",
+        "copyId": "Copy Plugin ID",
+        "copied": "Copied",
+        "anonymous": "Anonymous",
+        "allLoaded": "You have browsed all {count} plugins"
+    },
+    "NotFound": {
+        "code": "404",
+        "globalTitle": "Page not found",
+        "pluginTitle": "Plugin not found",
+        "globalDesc": "The page URL is invalid or the page has been removed.",
+        "pluginDesc": "This plugin does not exist, has been removed, or the link is invalid.",
+        "redirecting": "Redirecting to home in {seconds}s."
+    }
+}

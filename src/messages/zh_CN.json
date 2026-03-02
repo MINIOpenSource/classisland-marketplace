@@ -1,0 +1,38 @@
+{
+    "Index": {
+        "title": "ClassIsland 插件市场",
+        "preview": "预览",
+        "description": "发现并下载 ClassIsland 插件",
+        "searchPlaceholder": "通过名字或 ID 搜索插件...",
+        "plugins": "插件",
+        "themes": "主题",
+        "themeToggled": "已切换主题",
+        "author": "作者",
+        "version": "版本",
+        "downloads": "下载量",
+        "stars": "星标",
+        "download": "下载",
+        "install": "在 ClassIsland 中安装",
+        "learnMore": "了解更多",
+        "requiresWindows": "仅支持在 Windows 上安装",
+        "back": "返回",
+        "sortBy": "排序方式：",
+        "sortDownloads": "下载量",
+        "sortStars": "星标",
+        "sortName": "名称",
+        "openInGitHub": "在 GitHub 打开",
+        "details": "详细信息",
+        "copyId": "复制插件 ID",
+        "copied": "已复制",
+        "anonymous": "无名氏",
+        "allLoaded": "您已经浏览完全部的 {count} 个插件了"
+    },
+    "NotFound": {
+        "code": "404",
+        "globalTitle": "页面不存在",
+        "pluginTitle": "插件不存在",
+        "globalDesc": "页面地址无效或页面已被移除。",
+        "pluginDesc": "该插件不存在、已下架，或链接失效。",
+        "redirecting": "将在 {seconds} 秒后返回首页。"
+    }
+}

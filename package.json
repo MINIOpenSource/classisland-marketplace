@@ -1,0 +1,37 @@
+{
+  "name": "classisland-marketplace",
+  "version": "1.0.4",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "serve out",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@fluentui/react-components": "^9.73.1",
+    "@fluentui/react-icons": "^2.0.319",
+    "@uiw/react-markdown-preview": "^5.1.5",
+    "adm-zip": "^0.5.16",
+    "next": "16.1.6",
+    "next-intl": "^4.8.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-intersection-observer": "^10.0.3",
+    "react-markdown": "^10.1.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "serve": "^14.1.0"
+  }
+}
