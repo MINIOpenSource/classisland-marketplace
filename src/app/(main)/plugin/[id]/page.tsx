@@ -1,4 +1,4 @@
-import { getPluginById, getReadmeContent, getPluginIndex } from '@/services/pluginIndex';
+import { getPluginById, getReadmeContent, getPluginIndex, getPluginVersionHistory } from '@/services/pluginIndex';
 import { PluginDetailClient } from '@/components/PluginDetailClient';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
@@ -45,7 +45,15 @@ export default async function PluginPage({ params }: { params: Promise<{ id: str
         }
     }
 
+    // Fetch version history from GitHub releases
+    const versionHistory = await getPluginVersionHistory(
+        id,
+        plugin.DownloadUrl,
+        plugin.Manifest?.Url
+    );
+
     return (
-        <PluginDetailClient plugin={plugin} readmeContent={readmeContent} />
+        <PluginDetailClient plugin={plugin} readmeContent={readmeContent} versionHistory={versionHistory} />
     );
 }
+

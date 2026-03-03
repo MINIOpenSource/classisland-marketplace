@@ -30,7 +30,21 @@
         "externalLinkWarningContent": "You are about to leave ClassIsland Marketplace and visit the following link:",
         "externalLinkWarningConfirm": "Please ensure the safety of this link.",
         "cancel": "Cancel",
-        "confirm": "Continue"
+        "confirm": "Continue",
+        "embedCard": "Embed Card",
+        "embedCardTitle": "Embed Plugin Card",
+        "embedCardDesc": "Copy the HTML snippet below to embed this plugin card in your README or website.",
+        "close": "Close",
+        "installShort": "Install",
+        "marketplaceShort": "Marketplace",
+        "versionHistory": "Version History",
+        "versionPlural": "versions",
+        "versionSingular": "version",
+        "currentVersion": "Current version",
+        "current": "Current",
+        "prerelease": "Pre-release",
+        "downloadVersion": "Download this version",
+        "showAllVersions": "Show all {count} versions"
     },
     "NotFound": {
         "code": "404",

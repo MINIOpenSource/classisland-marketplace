@@ -274,7 +274,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
     }, [inView, index]);
 
     useEffect(() => {
-        if (!isWin && inView && resolvedDownloadUrl && !fileSizeStr) {
+        if (inView && resolvedDownloadUrl && !fileSizeStr) {
             fetch(resolvedDownloadUrl, { method: 'HEAD' })
                 .then(res => {
                     if (res.ok) {
@@ -286,7 +286,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                 })
                 .catch(() => { });
         }
-    }, [isWin, inView, resolvedDownloadUrl, fileSizeStr]);
+    }, [inView, resolvedDownloadUrl, fileSizeStr]);
 
     const { Manifest, DownloadCount, StarsCount, RealIconPath, CachedIconFile } = plugin;
 
@@ -400,7 +400,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                     {Manifest.Author || t('anonymous')}
                                 </Text>
                                 <Text size={200} className={styles.truncate} style={{ color: tokens.colorNeutralForeground4 }}>
-                                    {t('version')} {Manifest.Version}
+                                    {t('version')} {Manifest.Version}{fileSizeStr ? ` • ${fileSizeStr}` : ''}
                                 </Text>
                             </div>
                         }

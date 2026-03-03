@@ -15,12 +15,14 @@ import {
     DialogActions,
     DialogContent
 } from '@fluentui/react-components';
-import { ArrowDownloadRegular, StarRegular, ArrowLeftRegular, OpenRegular, CopyRegular, CheckmarkRegular } from '@fluentui/react-icons';
+import { ArrowDownloadRegular, StarRegular, ArrowLeftRegular, OpenRegular, CopyRegular, CheckmarkRegular, CodeRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { PluginData } from './PluginCard';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { VersionHistory } from './VersionHistory';
+import type { VersionEntry } from '@/services/pluginIndex';
 
 function formatBytes(bytes?: number, decimals = 2) {
     if (bytes === undefined || bytes === null || !+bytes) return '';
@@ -175,7 +177,7 @@ const useStyles = makeStyles({
     },
 });
 
-export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginData, readmeContent: string }) {
+export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] }: { plugin: PluginData, readmeContent: string, versionHistory?: VersionEntry[] }) {
     const styles = useStyles();
     const t = useTranslations('Index');
     const router = useRouter();
@@ -185,7 +187,9 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
         return () => clearTimeout(timer);
     }, []);
     const [copied, setCopied] = useState(false);
+    const [embedCopied, setEmbedCopied] = useState(false);
     const [confirmLink, setConfirmLink] = useState<string | null>(null);
+    const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
 
     const handleLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = (e.target as HTMLElement).closest('a');
@@ -196,7 +200,7 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
                     e.preventDefault();
                     setConfirmLink(target.href);
                 }
-            } catch (error) {
+            } catch {
                 // Ignore invalid URLs
             }
         }
@@ -232,6 +236,15 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
         navigator.clipboard.writeText(Manifest.Id).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    const iframeCode = `<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/iframe/plugin/${Manifest.Id}" width="400" height="180" frameborder="0" style="border-radius: 8px; overflow: hidden; max-width: 100%;"></iframe>`;
+
+    const handleCopyEmbed = () => {
+        navigator.clipboard.writeText(iframeCode).then(() => {
+            setEmbedCopied(true);
+            setTimeout(() => setEmbedCopied(false), 2000);
         });
     };
 
@@ -328,10 +341,23 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
                                 />
                             </Tooltip>
                         )}
+                        <Tooltip content={t('embedCard') || 'Embed Card'} relationship="label">
+                            <Button
+                                appearance="outline"
+                                size="large"
+                                icon={<CodeRegular />}
+                                onClick={() => setEmbedDialogOpen(true)}
+                                className={`${styles.iconBtn} ${styles.actionButton}`}
+                            />
+                        </Tooltip>
                     </div>
                     {!isWin && <Text size={200} style={{ color: tokens.colorNeutralForeground4 }}>{t('requiresWindows')}</Text>}
                 </div>
             </div>
+
+            {versionHistory.length > 0 && (
+                <VersionHistory versions={versionHistory} currentVersion={Manifest.Version} />
+            )}
 
             <div className={styles.readme} style={{ padding: 0, overflow: 'hidden' }} onClick={handleLinkClick}>
                 {readmeContent ? (
@@ -367,6 +393,48 @@ export function PluginDetailClient({ plugin, readmeContent }: { plugin: PluginDa
                                     setConfirmLink(null);
                                 }
                             }}>{t('confirm')}</Button>
+                        </DialogActions>
+                    </DialogBody>
+                </DialogSurface>
+            </Dialog>
+
+            <Dialog open={embedDialogOpen} onOpenChange={(_, data) => setEmbedDialogOpen(data.open)}>
+                <DialogSurface>
+                    <DialogBody>
+                        <DialogTitle>{t('embedCardTitle') || 'Embed Plugin Card'}</DialogTitle>
+                        <DialogContent>
+                            <Text>{t('embedCardDesc') || 'Copy the HTML snippet below to embed this plugin card in your README or website.'}</Text>
+                            <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+                                <iframe src={`/iframe/plugin/${Manifest.Id}`} width="100%" height="180" frameBorder="0" style={{ borderRadius: '8px', overflow: 'hidden' }} />
+                            </div>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                backgroundColor: tokens.colorNeutralBackground2,
+                                padding: '8px 12px',
+                                borderRadius: tokens.borderRadiusMedium,
+                                gap: '8px'
+                            }}>
+                                <code style={{
+                                    fontFamily: 'monospace',
+                                    fontSize: '12px',
+                                    wordBreak: 'break-all',
+                                    whiteSpace: 'pre-wrap',
+                                    color: tokens.colorNeutralForeground1
+                                }}>
+                                    {iframeCode}
+                                </code>
+                                <Button
+                                    appearance="subtle"
+                                    icon={embedCopied ? <CheckmarkRegular /> : <CopyRegular />}
+                                    onClick={handleCopyEmbed}
+                                    style={{ flexShrink: 0 }}
+                                />
+                            </div>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button appearance="secondary" onClick={() => setEmbedDialogOpen(false)}>{t('close') || 'Close'}</Button>
                         </DialogActions>
                     </DialogBody>
                 </DialogSurface>

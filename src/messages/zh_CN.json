@@ -30,7 +30,19 @@
         "externalLinkWarningContent": "您即将离开 ClassIsland Marketplace 并访问以下链接：",
         "externalLinkWarningConfirm": "请确认此链接的安全性。",
         "cancel": "取消",
-        "confirm": "继续访问"
+        "confirm": "继续访问",
+        "embedCard": "嵌入卡片",
+        "embedCardTitle": "嵌入插件卡片",
+        "embedCardDesc": "复制下方的 HTML 代码片段，将此插件卡片作为预览或小组件嵌入到您的 README 或网站中。",
+        "close": "关闭",
+        "versionHistory": "版本历史",
+        "versionPlural": "个版本",
+        "versionSingular": "个版本",
+        "currentVersion": "当前版本",
+        "current": "当前",
+        "prerelease": "预发布",
+        "downloadVersion": "下载此版本",
+        "showAllVersions": "显示全部 {count} 个版本"
     },
     "NotFound": {
         "code": "404",

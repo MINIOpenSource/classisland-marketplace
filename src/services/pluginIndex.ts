@@ -22,6 +22,37 @@ function toSafePluginId(pluginId: string): string {
 }
 
 /**
+ * Fetch with automatic retry and exponential backoff.
+ * Retries on network errors and non-OK responses (5xx).
+ */
+async function fetchWithRetry(
+    url: string,
+    options?: RequestInit,
+    { retries = 3, baseDelay = 1000 }: { retries?: number; baseDelay?: number } = {}
+): Promise<Response> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const res = await fetch(url, options);
+            // Retry on server errors (5xx), but not on client errors (4xx)
+            if (res.ok || res.status < 500) {
+                return res;
+            }
+            lastError = new Error(`HTTP ${res.status}: ${res.statusText}`);
+            console.warn(`[fetchWithRetry] Attempt ${attempt + 1}/${retries + 1} failed for ${url}: HTTP ${res.status}`);
+        } catch (e) {
+            lastError = e;
+            console.warn(`[fetchWithRetry] Attempt ${attempt + 1}/${retries + 1} failed for ${url}:`, e);
+        }
+        if (attempt < retries) {
+            const delay = baseDelay * Math.pow(2, attempt);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    throw lastError;
+}
+
+/**
  * Download and cache a plugin icon. Returns the local filename (pluginId + ext).
  */
 async function cacheIcon(pluginId: string, iconUrl: string): Promise<string | null> {
@@ -41,7 +72,7 @@ async function cacheIcon(pluginId: string, iconUrl: string): Promise<string | nu
     }
 
     try {
-        const res = await fetch(iconUrl);
+        const res = await fetchWithRetry(iconUrl);
         if (!res.ok) return null;
         const buf = Buffer.from(await res.arrayBuffer());
         fs.writeFileSync(filePath, buf);
@@ -67,7 +98,7 @@ async function cacheCipx(pluginId: string, downloadUrl: string): Promise<{ filen
     }
 
     try {
-        const res = await fetch(downloadUrl);
+        const res = await fetchWithRetry(downloadUrl);
         if (!res.ok) return { filename: null, sizeExceeded: false };
         const contentLength = res.headers.get('content-length');
         if (contentLength && parseInt(contentLength, 10) > 24 * 1024 * 1024) {
@@ -144,7 +175,7 @@ async function processReadmeImages(pluginId: string, text: string, readmeUrl: st
 
             if (!fs.existsSync(filePath)) {
                 // To avoid long hangs if remote server is slow, but we expect standard fetch to work
-                const res = await fetch(absoluteUrl);
+                const res = await fetchWithRetry(absoluteUrl);
                 if (res.ok) {
                     const buf = Buffer.from(await res.arrayBuffer());
                     fs.writeFileSync(filePath, buf);
@@ -180,7 +211,7 @@ async function cacheReadme(pluginId: string, readmeUrl: string): Promise<string 
     }
 
     try {
-        const res = await fetch(readmeUrl);
+        const res = await fetchWithRetry(readmeUrl);
         if (!res.ok) return null;
         let text = await res.text();
 
@@ -348,4 +379,134 @@ export function getReadmeContent(pluginId: string): string | null {
         return fs.readFileSync(filePath, 'utf-8');
     }
     return null;
+}
+
+// ---- Version History ----
+
+const VERSION_CACHE_DIR = path.join(CACHE_DIR, 'versions');
+
+export interface VersionEntry {
+    version: string;
+    tagName: string;
+    publishedAt: string;
+    body: string;
+    downloadUrl?: string;
+    cipxDownloadUrl?: string;
+    cipxSize?: number;
+    prerelease: boolean;
+}
+
+/**
+ * Extract GitHub owner/repo from a GitHub URL.
+ * Handles patterns like:
+ *   https://github.com/owner/repo
+ *   https://github.com/owner/repo/releases/...
+ *   https://github.com/owner/repo/raw/...
+ * Returns null if not a GitHub URL or can't parse.
+ */
+function extractGitHubRepo(url: string): { owner: string; repo: string } | null {
+    if (!url) return null;
+    try {
+        const u = new URL(url);
+        if (!u.hostname.includes('github.com')) return null;
+        const parts = u.pathname.split('/').filter(Boolean);
+        if (parts.length >= 2) {
+            return { owner: parts[0], repo: parts[1] };
+        }
+    } catch {
+        // ignore
+    }
+    return null;
+}
+
+/**
+ * Fetch version history (GitHub Releases) for a plugin.
+ * Uses DownloadUrl or Manifest.Url to determine the GitHub repo.
+ * Caches results to avoid repeated API calls.
+ */
+export async function getPluginVersionHistory(
+    pluginId: string,
+    downloadUrl?: string,
+    manifestUrl?: string
+): Promise<VersionEntry[]> {
+    ensureDir(VERSION_CACHE_DIR);
+    const safeId = toSafePluginId(pluginId);
+    const cacheFile = path.join(VERSION_CACHE_DIR, `${safeId}.json`);
+
+    // Return from cache if fresh
+    if (fs.existsSync(cacheFile)) {
+        const stats = fs.statSync(cacheFile);
+        const age = Date.now() - stats.mtimeMs;
+        if (age < CACHE_TTL) {
+            try {
+                return JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+            } catch {
+                // corrupted cache, refetch
+            }
+        }
+    }
+
+    // Determine GitHub owner/repo
+    let repo = extractGitHubRepo(downloadUrl || '');
+    if (!repo) {
+        repo = extractGitHubRepo(manifestUrl || '');
+    }
+    if (!repo) {
+        // Can't determine GitHub repo, return empty
+        return [];
+    }
+
+    try {
+        const apiUrl = `https://api.github.com/repos/${repo.owner}/${repo.repo}/releases?per_page=30`;
+        const headers: Record<string, string> = {
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'ClassIsland-Marketplace/1.0',
+        };
+        // Use GitHub token if available to avoid rate limiting
+        if (process.env.GITHUB_TOKEN) {
+            headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+        }
+
+        const res = await fetchWithRetry(apiUrl, { headers }, { retries: 2, baseDelay: 500 });
+        if (!res.ok) {
+            console.warn(`Failed to fetch releases for ${repo.owner}/${repo.repo}: HTTP ${res.status}`);
+            // Return stale cache if available
+            if (fs.existsSync(cacheFile)) {
+                try { return JSON.parse(fs.readFileSync(cacheFile, 'utf-8')); } catch { /* empty */ }
+            }
+            return [];
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const releases: any[] = await res.json();
+        const versions: VersionEntry[] = releases.map((release) => {
+            // Find the .cipx asset
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const cipxAsset = release.assets?.find((a: any) =>
+                a.name?.endsWith('.cipx')
+            );
+
+            return {
+                version: release.name || release.tag_name || '',
+                tagName: release.tag_name || '',
+                publishedAt: release.published_at || release.created_at || '',
+                body: release.body || '',
+                downloadUrl: release.html_url || '',
+                cipxDownloadUrl: cipxAsset?.browser_download_url || undefined,
+                cipxSize: cipxAsset?.size || undefined,
+                prerelease: release.prerelease || false,
+            };
+        });
+
+        // Cache the result
+        fs.writeFileSync(cacheFile, JSON.stringify(versions, null, 2), 'utf-8');
+        return versions;
+    } catch (e) {
+        console.warn(`Failed to fetch version history for ${pluginId}:`, e);
+        // Return stale cache if available
+        if (fs.existsSync(cacheFile)) {
+            try { return JSON.parse(fs.readFileSync(cacheFile, 'utf-8')); } catch { /* empty */ }
+        }
+        return [];
+    }
 }
