@@ -7,9 +7,20 @@ const CACHE_DIR = path.join(process.cwd(), '.plugin-cache');
 const CACHE_JSON = path.join(CACHE_DIR, 'index.json');
 const ICON_DIR = path.join(process.cwd(), 'public', 'icons');
 const CIPX_DIR = path.join(process.cwd(), 'public', 'cipx');
+const CIPX_HISTORY_DIR = path.join(process.cwd(), 'public', 'cipx-history');
+const CIPX_CHUNKS_DIR = path.join(process.cwd(), 'public', 'cipx-chunks');
 const README_IMAGE_DIR = path.join(process.cwd(), 'public', 'readme-images');
 const README_DIR = path.join(process.cwd(), 'public', 'readmes');
+const VERSION_DESC_DIR = path.join(process.cwd(), 'public', 'version-descriptions');
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const CIPX_CHUNK_SIZE = 1024 * 1024; // 1MB
+
+interface CipxChunkManifest {
+    fileName: string;
+    totalSize: number;
+    chunkSize: number;
+    chunks: string[];
+}
 
 function ensureDir(dir: string) {
     if (!fs.existsSync(dir)) {
@@ -19,6 +30,54 @@ function ensureDir(dir: string) {
 
 function toSafePluginId(pluginId: string): string {
     return pluginId.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function createChunkFolderName(...parts: string[]): string {
+    return parts
+        .filter(Boolean)
+        .map((part) => toSafePluginId(part))
+        .join('__');
+}
+
+function splitFileToChunks(
+    filePath: string,
+    outputSubDir: string,
+    outputName: string
+): string | null {
+    ensureDir(CIPX_CHUNKS_DIR);
+    const chunkDir = path.join(CIPX_CHUNKS_DIR, outputSubDir);
+    const manifestPath = path.join(chunkDir, 'manifest.json');
+    if (fs.existsSync(manifestPath)) {
+        return `/cipx-chunks/${outputSubDir}/manifest.json`;
+    }
+
+    if (!fs.existsSync(filePath)) {
+        return null;
+    }
+
+    ensureDir(chunkDir);
+    const buf = fs.readFileSync(filePath);
+    const chunks: string[] = [];
+    let index = 0;
+
+    for (let offset = 0; offset < buf.length; offset += CIPX_CHUNK_SIZE) {
+        const end = Math.min(offset + CIPX_CHUNK_SIZE, buf.length);
+        const chunkBuf = buf.subarray(offset, end);
+        const chunkFile = `${String(index).padStart(4, '0')}.part`;
+        const chunkPath = path.join(chunkDir, chunkFile);
+        fs.writeFileSync(chunkPath, chunkBuf);
+        chunks.push(`/cipx-chunks/${outputSubDir}/${chunkFile}`);
+        index += 1;
+    }
+
+    const manifest: CipxChunkManifest = {
+        fileName: outputName,
+        totalSize: buf.length,
+        chunkSize: CIPX_CHUNK_SIZE,
+        chunks,
+    };
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+    return `/cipx-chunks/${outputSubDir}/manifest.json`;
 }
 
 /**
@@ -86,35 +145,27 @@ async function cacheIcon(pluginId: string, iconUrl: string): Promise<string | nu
 /**
  * Download and cache a plugin package (.cipx). Returns local filename.
  */
-async function cacheCipx(pluginId: string, downloadUrl: string): Promise<{ filename: string | null, sizeExceeded: boolean }> {
+async function cacheCipx(pluginId: string, downloadUrl: string): Promise<{ filename: string | null, chunkManifestUrl: string | null }> {
     ensureDir(CIPX_DIR);
     const safeId = toSafePluginId(pluginId);
     const filename = `${safeId}.cipx`;
     const filePath = path.join(CIPX_DIR, filename);
+    const chunkManifestUrl = splitFileToChunks(filePath, createChunkFolderName('latest', safeId), filename);
 
     // If already cached, skip download
     if (fs.existsSync(filePath)) {
-        return { filename, sizeExceeded: false };
+        return { filename, chunkManifestUrl };
     }
 
     try {
         const res = await fetchWithRetry(downloadUrl);
-        if (!res.ok) return { filename: null, sizeExceeded: false };
-        const contentLength = res.headers.get('content-length');
-        if (contentLength && parseInt(contentLength, 10) > 24 * 1024 * 1024) {
-            console.warn(`Plugin ${pluginId} size exceeds 24MB limit, skipping cache.`);
-            return { filename: null, sizeExceeded: true };
-        }
+        if (!res.ok) return { filename: null, chunkManifestUrl: null };
         const buf = Buffer.from(await res.arrayBuffer());
-        if (buf.length > 24 * 1024 * 1024) {
-            console.warn(`Plugin ${pluginId} size exceeds 24MB limit, skipping cache.`);
-            return { filename: null, sizeExceeded: true };
-        }
         fs.writeFileSync(filePath, buf);
-        return { filename, sizeExceeded: false };
+        return { filename, chunkManifestUrl: splitFileToChunks(filePath, createChunkFolderName('latest', safeId), filename) };
     } catch (e) {
         console.warn(`Failed to cache cipx for ${pluginId}:`, e);
-        return { filename: null, sizeExceeded: false };
+        return { filename: null, chunkManifestUrl: null };
     }
 }
 
@@ -122,7 +173,7 @@ function attachCachedCipxUrls(data: unknown) {
     if (!data || typeof data !== 'object') {
         return;
     }
-    const record = data as { Plugins?: Array<{ Manifest?: { Id?: string }; LocalDownloadUrl?: string }> };
+    const record = data as { Plugins?: Array<{ Manifest?: { Id?: string }; LocalDownloadUrl?: string; LocalDownloadChunkManifest?: string }> };
     if (!record.Plugins || !Array.isArray(record.Plugins)) {
         return;
     }
@@ -134,6 +185,10 @@ function attachCachedCipxUrls(data: unknown) {
         const filePath = path.join(CIPX_DIR, filename);
         if (fs.existsSync(filePath)) {
             plugin.LocalDownloadUrl = `/cipx/${filename}`;
+            const manifestUrl = splitFileToChunks(filePath, createChunkFolderName('latest', toSafePluginId(id)), filename);
+            if (manifestUrl) {
+                plugin.LocalDownloadChunkManifest = manifestUrl;
+            }
         }
     });
 }
@@ -225,6 +280,63 @@ async function cacheReadme(pluginId: string, readmeUrl: string): Promise<string 
     }
 }
 
+async function cacheHistoricalCipx(
+    pluginId: string,
+    tagName: string,
+    downloadUrl: string
+): Promise<{ localUrl?: string; chunkManifestUrl?: string; size?: number }> {
+    ensureDir(CIPX_HISTORY_DIR);
+    const safePluginId = toSafePluginId(pluginId);
+    const safeTag = toSafePluginId(tagName || 'untagged');
+    const filename = `${safePluginId}__${safeTag}.cipx`;
+    const filePath = path.join(CIPX_HISTORY_DIR, filename);
+    const chunkFolder = createChunkFolderName('history', safePluginId, safeTag);
+
+    if (fs.existsSync(filePath)) {
+        const stat = fs.statSync(filePath);
+        const manifestUrl = splitFileToChunks(filePath, chunkFolder, filename);
+        return {
+            localUrl: `/cipx-history/${filename}`,
+            chunkManifestUrl: manifestUrl || undefined,
+            size: stat.size,
+        };
+    }
+
+    try {
+        const res = await fetchWithRetry(downloadUrl);
+        if (!res.ok) return {};
+        const buf = Buffer.from(await res.arrayBuffer());
+        fs.writeFileSync(filePath, buf);
+        const manifestUrl = splitFileToChunks(filePath, chunkFolder, filename);
+        return {
+            localUrl: `/cipx-history/${filename}`,
+            chunkManifestUrl: manifestUrl || undefined,
+            size: buf.length,
+        };
+    } catch (e) {
+        console.warn(`Failed to cache historical cipx for ${pluginId}@${tagName}:`, e);
+        return {};
+    }
+}
+
+function cacheHistoricalDescription(
+    pluginId: string,
+    tagName: string,
+    markdown: string
+): string | undefined {
+    const safePluginId = toSafePluginId(pluginId);
+    const safeTag = toSafePluginId(tagName || 'untagged');
+    const pluginDescDir = path.join(VERSION_DESC_DIR, safePluginId);
+    ensureDir(pluginDescDir);
+    const filename = `${safeTag}.md`;
+    const filePath = path.join(pluginDescDir, filename);
+    const content = markdown || '';
+    if (!fs.existsSync(filePath) || fs.readFileSync(filePath, 'utf-8') !== content) {
+        fs.writeFileSync(filePath, content, 'utf-8');
+    }
+    return `/version-descriptions/${safePluginId}/${filename}`;
+}
+
 export async function getPluginIndex() {
     // 1. Check if unpacked JSON cache exists and is fresh
     if (fs.existsSync(CACHE_JSON)) {
@@ -279,7 +391,6 @@ export async function getPluginIndex() {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data.Plugins.forEach((plugin: any) => {
-            const originalDownloadUrl = plugin.DownloadUrl;
             if (plugin.RealIconPath) {
                 plugin.RealIconPath = plugin.RealIconPath.replace('{root}', root);
             }
@@ -315,11 +426,12 @@ export async function getPluginIndex() {
             // Cache plugin package (.cipx) for static export
             if (plugin.DownloadUrl && plugin.Manifest?.Id) {
                 cachePromises.push(
-                    cacheCipx(plugin.Manifest.Id, plugin.DownloadUrl).then(({ filename, sizeExceeded }) => {
+                    cacheCipx(plugin.Manifest.Id, plugin.DownloadUrl).then(({ filename, chunkManifestUrl }) => {
                         if (filename) {
                             plugin.LocalDownloadUrl = `/cipx/${filename}`;
-                        } else if (sizeExceeded && originalDownloadUrl) {
-                            plugin.DownloadUrl = originalDownloadUrl.replace('{root}', 'https://github.com');
+                        }
+                        if (chunkManifestUrl) {
+                            plugin.LocalDownloadChunkManifest = chunkManifestUrl;
                         }
                     })
                 );
@@ -392,7 +504,9 @@ export interface VersionEntry {
     body: string;
     downloadUrl?: string;
     cipxDownloadUrl?: string;
+    cipxChunkManifestUrl?: string;
     cipxSize?: number;
+    localDescriptionUrl?: string;
     prerelease: boolean;
 }
 
@@ -479,24 +593,47 @@ export async function getPluginVersionHistory(
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const releases: any[] = await res.json();
-        const versions: VersionEntry[] = releases.map((release) => {
+        const versions: VersionEntry[] = [];
+
+        for (const release of releases) {
             // Find the .cipx asset
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const cipxAsset = release.assets?.find((a: any) =>
                 a.name?.endsWith('.cipx')
             );
+            const resolvedTag = release.tag_name || release.name || 'untagged';
+            const body = release.body || '';
+            const localDescriptionUrl = cacheHistoricalDescription(pluginId, resolvedTag, body);
 
-            return {
+            let cipxDownloadUrl = cipxAsset?.browser_download_url || undefined;
+            let cipxChunkManifestUrl: string | undefined;
+            let cipxSize = cipxAsset?.size || undefined;
+            if (cipxAsset?.browser_download_url) {
+                const cached = await cacheHistoricalCipx(pluginId, resolvedTag, cipxAsset.browser_download_url);
+                if (cached.localUrl) {
+                    cipxDownloadUrl = cached.localUrl;
+                }
+                if (cached.chunkManifestUrl) {
+                    cipxChunkManifestUrl = cached.chunkManifestUrl;
+                }
+                if (cached.size !== undefined) {
+                    cipxSize = cached.size;
+                }
+            }
+
+            versions.push({
                 version: release.name || release.tag_name || '',
-                tagName: release.tag_name || '',
+                tagName: resolvedTag,
                 publishedAt: release.published_at || release.created_at || '',
-                body: release.body || '',
+                body,
                 downloadUrl: release.html_url || '',
-                cipxDownloadUrl: cipxAsset?.browser_download_url || undefined,
-                cipxSize: cipxAsset?.size || undefined,
+                cipxDownloadUrl,
+                cipxChunkManifestUrl,
+                cipxSize,
+                localDescriptionUrl,
                 prerelease: release.prerelease || false,
-            };
-        });
+            });
+        }
 
         // Cache the result
         fs.writeFileSync(cacheFile, JSON.stringify(versions, null, 2), 'utf-8');

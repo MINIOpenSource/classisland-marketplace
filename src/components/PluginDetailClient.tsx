@@ -23,6 +23,8 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { VersionHistory } from './VersionHistory';
 import type { VersionEntry } from '@/services/pluginIndex';
+import Image from 'next/image';
+import { downloadCipxByManifest } from '@/utils/cipxDownloader';
 
 function formatBytes(bytes?: number, decimals = 2) {
     if (bytes === undefined || bytes === null || !+bytes) return '';
@@ -57,6 +59,7 @@ const useStyles = makeStyles({
         animationFillMode: 'both',
     },
     headerCard: {
+        position: 'relative',
         backgroundColor: tokens.colorNeutralBackground1,
         borderRadius: tokens.borderRadiusXLarge,
         padding: '32px',
@@ -153,6 +156,9 @@ const useStyles = makeStyles({
         display: 'flex',
         gap: '8px',
         alignItems: 'stretch',
+        '@media (max-width: 768px)': {
+            paddingRight: '44px',
+        }
     },
     // Fixed 1:1 icon-only button
     iconBtn: {
@@ -175,6 +181,31 @@ const useStyles = makeStyles({
     backButton: {
         borderRadius: tokens.borderRadiusLarge,
     },
+    embedRowButton: {
+        '@media (max-width: 768px)': {
+            display: 'none',
+        }
+    },
+    embedCornerBtn: {
+        display: 'none',
+        '@media (max-width: 768px)': {
+            display: 'inline-flex',
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            width: '34px',
+            height: '34px',
+            minWidth: '34px',
+            padding: 0,
+            borderRadius: tokens.borderRadiusLarge,
+            zIndex: 3,
+        }
+    },
+    installButton: {
+        '@media (max-width: 768px)': {
+            display: 'none',
+        }
+    },
 });
 
 export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] }: { plugin: PluginData, readmeContent: string, versionHistory?: VersionEntry[] }) {
@@ -188,6 +219,9 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     }, []);
     const [copied, setCopied] = useState(false);
     const [embedCopied, setEmbedCopied] = useState(false);
+    const [embedType, setEmbedType] = useState<'svg' | 'iframe'>('svg');
+    const [origin, setOrigin] = useState('');
+    const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
     const [confirmLink, setConfirmLink] = useState<string | null>(null);
     const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
 
@@ -221,6 +255,22 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     };
 
     const handleDownload = () => {
+        if (plugin.LocalDownloadChunkManifest) {
+            setDownloadProgress(0);
+            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, {
+                fallbackFileName: `${Manifest.Id}.cipx`,
+                onProgress: ({ completedChunks, totalChunks }) => {
+                    setDownloadProgress(totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0);
+                }
+            }).catch(() => {
+                if (resolvedDownloadUrl) {
+                    window.location.href = resolvedDownloadUrl;
+                }
+            }).finally(() => {
+                setDownloadProgress(null);
+            });
+            return;
+        }
         if (resolvedDownloadUrl) {
             window.location.href = resolvedDownloadUrl;
         }
@@ -239,10 +289,16 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
         });
     };
 
-    const iframeCode = `<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/iframe/plugin/${Manifest.Id}" width="400" height="180" frameborder="0" style="border-radius: 8px; overflow: hidden; max-width: 100%;"></iframe>`;
+    const escapedEmbedAlt = Manifest.Name.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    const pluginDetailUrl = `${origin}/plugin/${Manifest.Id}`;
+    const svgCardUrl = `${origin}/svg/plugin/${Manifest.Id}`;
+    const iframeCardUrl = `${origin}/iframe/plugin/${Manifest.Id}`;
+    const svgEmbedCode = `<a href="${pluginDetailUrl}" target="_blank" rel="noopener noreferrer"><img src="${svgCardUrl}" alt="${escapedEmbedAlt}" width="400" height="180" style="border-radius: 8px; max-width: 100%; height: auto;" /></a>`;
+    const iframeEmbedCode = `<iframe src="${iframeCardUrl}" width="400" height="180" frameborder="0" style="border-radius: 8px; overflow: hidden; max-width: 100%;"></iframe>`;
+    const embedCode = embedType === 'svg' ? svgEmbedCode : iframeEmbedCode;
 
     const handleCopyEmbed = () => {
-        navigator.clipboard.writeText(iframeCode).then(() => {
+        navigator.clipboard.writeText(embedCode).then(() => {
             setEmbedCopied(true);
             setTimeout(() => setEmbedCopied(false), 2000);
         });
@@ -316,7 +372,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                             icon={<OpenRegular />}
                             onClick={handleInstall}
                             title={!isWin ? t('requiresWindows') : ""}
-                            className={styles.actionButton}
+                            className={`${styles.actionButton} ${styles.installButton}`}
                             style={{ padding: '0 32px', fontSize: '16px', borderRadius: tokens.borderRadiusLarge, height: '48px' }}
                         >
                             {t('install')}
@@ -346,12 +402,32 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                 appearance="outline"
                                 size="large"
                                 icon={<CodeRegular />}
-                                onClick={() => setEmbedDialogOpen(true)}
-                                className={`${styles.iconBtn} ${styles.actionButton}`}
+                                onClick={() => {
+                                    setOrigin(window.location.origin);
+                                    setEmbedDialogOpen(true);
+                                }}
+                                className={`${styles.iconBtn} ${styles.actionButton} ${styles.embedRowButton}`}
                             />
                         </Tooltip>
                     </div>
+                    <Tooltip content={t('embedCard') || 'Embed Card'} relationship="label">
+                        <Button
+                            appearance="outline"
+                            size="small"
+                            icon={<CodeRegular />}
+                            onClick={() => {
+                                setOrigin(window.location.origin);
+                                setEmbedDialogOpen(true);
+                            }}
+                            className={`${styles.embedCornerBtn} ${styles.actionButton}`}
+                        />
+                    </Tooltip>
                     {!isWin && <Text size={200} style={{ color: tokens.colorNeutralForeground4 }}>{t('requiresWindows')}</Text>}
+                    {downloadProgress !== null && (
+                        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                            {`${t('download')} ${downloadProgress}%`}
+                        </Text>
+                    )}
                 </div>
             </div>
 
@@ -404,8 +480,54 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                         <DialogTitle>{t('embedCardTitle') || 'Embed Plugin Card'}</DialogTitle>
                         <DialogContent>
                             <Text>{t('embedCardDesc') || 'Copy the HTML snippet below to embed this plugin card in your README or website.'}</Text>
+                            <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                                <Button
+                                    size="small"
+                                    appearance={embedType === 'svg' ? 'primary' : 'secondary'}
+                                    onClick={() => {
+                                        setEmbedType('svg');
+                                        setEmbedCopied(false);
+                                    }}
+                                >
+                                    {t('embedCardTypeSvg')}
+                                </Button>
+                                <Button
+                                    size="small"
+                                    appearance={embedType === 'iframe' ? 'primary' : 'secondary'}
+                                    onClick={() => {
+                                        setEmbedType('iframe');
+                                        setEmbedCopied(false);
+                                    }}
+                                >
+                                    {t('embedCardTypeIframe')}
+                                </Button>
+                            </div>
                             <div style={{ marginTop: '16px', marginBottom: '16px' }}>
-                                <iframe src={`/iframe/plugin/${Manifest.Id}`} width="100%" height="180" frameBorder="0" style={{ borderRadius: '8px', overflow: 'hidden' }} />
+                                {embedType === 'svg' ? (
+                                    <>
+                                        <a href={`/plugin/${Manifest.Id}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%' }}>
+                                            <Image
+                                                src={`/svg/plugin/${Manifest.Id}`}
+                                                alt={Manifest.Name}
+                                                width={400}
+                                                height={180}
+                                                unoptimized
+                                                style={{ borderRadius: '8px', overflow: 'hidden', objectFit: 'cover', width: '100%', height: 'auto' }}
+                                            />
+                                        </a>
+                                        <Text size={200} style={{ color: tokens.colorNeutralForeground3, marginTop: '8px', display: 'block' }}>
+                                            {t('embedCardClickHint')}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <iframe
+                                        src={`/iframe/plugin/${Manifest.Id}`}
+                                        width="100%"
+                                        height="180"
+                                        frameBorder="0"
+                                        style={{ borderRadius: '8px', overflow: 'hidden' }}
+                                    />
+                                )}
                             </div>
                             <div style={{
                                 display: 'flex',
@@ -423,7 +545,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                     whiteSpace: 'pre-wrap',
                                     color: tokens.colorNeutralForeground1
                                 }}>
-                                    {iframeCode}
+                                    {embedCode}
                                 </code>
                                 <Button
                                     appearance="subtle"

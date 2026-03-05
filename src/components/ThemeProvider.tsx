@@ -67,7 +67,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         <ThemeContext.Provider value={{ isDark, toggleTheme }}>
             <RendererProvider renderer={renderer}>
                 <SSRProvider>
-                    <FluentProvider theme={isDark ? webDarkTheme : webLightTheme} style={{ minHeight: '100vh', backgroundColor: isDark ? webDarkTheme.colorNeutralBackground2 : webLightTheme.colorNeutralBackground2 }}>
+                    <FluentProvider
+                        suppressHydrationWarning
+                        theme={isDark ? webDarkTheme : webLightTheme}
+                        style={{ minHeight: '100vh', backgroundColor: isDark ? webDarkTheme.colorNeutralBackground2 : webLightTheme.colorNeutralBackground2 }}
+                    >
                         {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
                     </FluentProvider>
                 </SSRProvider>

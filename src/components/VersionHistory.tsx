@@ -20,6 +20,7 @@ import {
 } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import { useState, useMemo } from 'react';
+import { downloadCipxByManifest } from '@/utils/cipxDownloader';
 
 export interface VersionEntry {
     version: string;
@@ -28,7 +29,9 @@ export interface VersionEntry {
     body: string;
     downloadUrl?: string;
     cipxDownloadUrl?: string;
+    cipxChunkManifestUrl?: string;
     cipxSize?: number;
+    localDescriptionUrl?: string;
     prerelease: boolean;
 }
 
@@ -249,6 +252,8 @@ export function VersionHistory({
     const t = useTranslations('Index');
     const [expanded, setExpanded] = useState(false);
     const [showAll, setShowAll] = useState(false);
+    const [downloadingTag, setDownloadingTag] = useState<string | null>(null);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     const displayVersions = useMemo(() => {
         if (showAll) return versions;
@@ -367,19 +372,36 @@ export function VersionHistory({
                                     {entry.body && entry.body.trim() && (
                                         <div className={styles.versionBody}>{entry.body.trim()}</div>
                                     )}
-                                    {entry.cipxDownloadUrl && (
+                                    {(entry.cipxDownloadUrl || entry.cipxChunkManifestUrl) && (
                                         <Button
                                             className={styles.downloadBtn}
                                             appearance="subtle"
                                             size="small"
                                             icon={<ArrowDownloadRegular />}
+                                            disabled={downloadingTag === (entry.tagName || entry.version)}
                                             onClick={() => {
+                                                const key = entry.tagName || entry.version;
+                                                if (entry.cipxChunkManifestUrl) {
+                                                    setDownloadingTag(key);
+                                                    setDownloadProgress(0);
+                                                    downloadCipxByManifest(entry.cipxChunkManifestUrl, {
+                                                        fallbackFileName: `${key || 'plugin'}.cipx`,
+                                                        onProgress: ({ completedChunks, totalChunks }) => {
+                                                            setDownloadProgress(totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0);
+                                                        },
+                                                    }).finally(() => {
+                                                        setDownloadingTag(null);
+                                                    });
+                                                    return;
+                                                }
                                                 if (entry.cipxDownloadUrl) {
                                                     window.location.href = entry.cipxDownloadUrl;
                                                 }
                                             }}
                                         >
-                                            {t('downloadVersion')}
+                                            {downloadingTag === (entry.tagName || entry.version)
+                                                ? `${t('downloadVersion')} ${downloadProgress}%`
+                                                : t('downloadVersion')}
                                         </Button>
                                     )}
                                 </div>

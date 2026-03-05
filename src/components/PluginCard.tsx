@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { useInView } from 'react-intersection-observer';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
+import { downloadCipxByManifest } from '@/utils/cipxDownloader';
 
 export function formatBytes(bytes?: number, decimals = 2) {
     if (bytes === undefined || bytes === null || !+bytes) return '';
@@ -228,6 +229,7 @@ const useStyles = makeStyles({
 export interface PluginData {
     DownloadUrl: string;
     LocalDownloadUrl?: string;
+    LocalDownloadChunkManifest?: string;
     LocalReadmeUrl?: string;
     DownloadCount: number;
     StarsCount: number;
@@ -303,6 +305,14 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
 
     const handleDownloadClick = (e: React.MouseEvent) => {
         e.preventDefault();
+        if (plugin.LocalDownloadChunkManifest) {
+            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, { fallbackFileName: `${Manifest.Id}.cipx` }).catch(() => {
+                if (resolvedDownloadUrl) {
+                    window.location.href = resolvedDownloadUrl;
+                }
+            });
+            return;
+        }
         if (resolvedDownloadUrl) {
             window.location.href = resolvedDownloadUrl;
         }

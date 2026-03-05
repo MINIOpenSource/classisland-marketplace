@@ -11,6 +11,7 @@ import { ArrowDownloadRegular, StarRegular, OpenRegular, ShareRegular } from '@f
 import { useTranslations } from 'next-intl';
 import { PluginData, formatBytes } from './PluginCard';
 import { useState, useEffect } from 'react';
+import { downloadCipxByManifest } from '@/utils/cipxDownloader';
 
 const useStyles = makeStyles({
     container: {
@@ -136,6 +137,14 @@ export function IframePluginClient({ plugin }: { plugin: PluginData }) {
     };
 
     const handleDownloadClick = () => {
+        if (plugin.LocalDownloadChunkManifest) {
+            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, { fallbackFileName: `${Manifest.Id}.cipx` }).catch(() => {
+                if (resolvedDownloadUrl) {
+                    window.location.href = resolvedDownloadUrl;
+                }
+            });
+            return;
+        }
         if (resolvedDownloadUrl) {
             window.location.href = resolvedDownloadUrl;
         }
