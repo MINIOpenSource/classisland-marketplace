@@ -2,12 +2,14 @@ import AdmZip from 'adm-zip';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import https from 'https';
+import http from 'http';
 
 const CACHE_DIR = path.join(process.cwd(), '.plugin-cache');
 const CACHE_JSON = path.join(CACHE_DIR, 'index.json');
 const ICON_DIR = path.join(process.cwd(), 'public', 'icons');
-const CIPX_DIR = path.join(process.cwd(), 'public', 'cipx');
-const CIPX_HISTORY_DIR = path.join(process.cwd(), 'public', 'cipx-history');
+const CIPX_DIR = path.join(process.cwd(), '.plugin-cache', 'cipx');
+const CIPX_HISTORY_DIR = path.join(process.cwd(), '.plugin-cache', 'cipx-history');
 const CIPX_CHUNKS_DIR = path.join(process.cwd(), 'public', 'cipx-chunks');
 const README_IMAGE_DIR = path.join(process.cwd(), 'public', 'readme-images');
 const README_DIR = path.join(process.cwd(), 'public', 'readmes');
@@ -112,6 +114,28 @@ async function fetchWithRetry(
 }
 
 /**
+ * Download a file using native https/http to bypass Next.js fetch cache limits.
+ */
+async function downloadBuffer(urlStr: string): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        const url = new URL(urlStr);
+        const protocol = url.protocol === 'https:' ? https : http;
+        protocol.get(urlStr, (res: http.IncomingMessage) => {
+            const statusCode = res.statusCode || 200;
+            if (statusCode >= 300 && statusCode < 400 && res.headers.location) {
+                return downloadBuffer(res.headers.location).then(resolve).catch(reject);
+            }
+            if (statusCode >= 400) {
+                return reject(new Error(`HTTP ${statusCode} ${res.statusMessage}`));
+            }
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk: Buffer) => chunks.push(chunk));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+        }).on('error', reject);
+    });
+}
+
+/**
  * Download and cache a plugin icon. Returns the local filename (pluginId + ext).
  */
 async function cacheIcon(pluginId: string, iconUrl: string): Promise<string | null> {
@@ -158,9 +182,7 @@ async function cacheCipx(pluginId: string, downloadUrl: string): Promise<{ filen
     }
 
     try {
-        const res = await fetchWithRetry(downloadUrl);
-        if (!res.ok) return { filename: null, chunkManifestUrl: null };
-        const buf = Buffer.from(await res.arrayBuffer());
+        const buf = await downloadBuffer(downloadUrl);
         fs.writeFileSync(filePath, buf);
         return { filename, chunkManifestUrl: splitFileToChunks(filePath, createChunkFolderName('latest', safeId), filename) };
     } catch (e) {
@@ -184,7 +206,6 @@ function attachCachedCipxUrls(data: unknown) {
         const filename = `${toSafePluginId(id)}.cipx`;
         const filePath = path.join(CIPX_DIR, filename);
         if (fs.existsSync(filePath)) {
-            plugin.LocalDownloadUrl = `/cipx/${filename}`;
             const manifestUrl = splitFileToChunks(filePath, createChunkFolderName('latest', toSafePluginId(id)), filename);
             if (manifestUrl) {
                 plugin.LocalDownloadChunkManifest = manifestUrl;
@@ -296,20 +317,16 @@ async function cacheHistoricalCipx(
         const stat = fs.statSync(filePath);
         const manifestUrl = splitFileToChunks(filePath, chunkFolder, filename);
         return {
-            localUrl: `/cipx-history/${filename}`,
             chunkManifestUrl: manifestUrl || undefined,
             size: stat.size,
         };
     }
 
     try {
-        const res = await fetchWithRetry(downloadUrl);
-        if (!res.ok) return {};
-        const buf = Buffer.from(await res.arrayBuffer());
+        const buf = await downloadBuffer(downloadUrl);
         fs.writeFileSync(filePath, buf);
         const manifestUrl = splitFileToChunks(filePath, chunkFolder, filename);
         return {
-            localUrl: `/cipx-history/${filename}`,
             chunkManifestUrl: manifestUrl || undefined,
             size: buf.length,
         };
@@ -351,13 +368,13 @@ export async function getPluginIndex() {
 
     // 2. Fetch zip from remote
     const time = Math.floor(Date.now() / 1000);
-    const url = `https://get.classisland.tech/d/ClassIsland-Ningbo-S3/classisland/plugin/index.zip?time=${time}`;
+    const url = `https://github.com/ClassIsland/PluginIndex/releases/download/latest/index.zip?time=${time}`;
 
     let buffer: Buffer;
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, { redirect: 'follow', cache: 'no-store' });
         if (!response.ok) {
-            throw new Error(`Failed to fetch plugin index zip: ${response.statusText}`);
+            throw new Error(`Failed to fetch plugin index zip: HTTP ${response.status} ${response.statusText}`);
         }
         buffer = Buffer.from(await response.arrayBuffer());
     } catch (error) {
@@ -426,10 +443,7 @@ export async function getPluginIndex() {
             // Cache plugin package (.cipx) for static export
             if (plugin.DownloadUrl && plugin.Manifest?.Id) {
                 cachePromises.push(
-                    cacheCipx(plugin.Manifest.Id, plugin.DownloadUrl).then(({ filename, chunkManifestUrl }) => {
-                        if (filename) {
-                            plugin.LocalDownloadUrl = `/cipx/${filename}`;
-                        }
+                    cacheCipx(plugin.Manifest.Id, plugin.DownloadUrl).then(({ chunkManifestUrl }) => {
                         if (chunkManifestUrl) {
                             plugin.LocalDownloadChunkManifest = chunkManifestUrl;
                         }
@@ -508,6 +522,7 @@ export interface VersionEntry {
     cipxSize?: number;
     localDescriptionUrl?: string;
     prerelease: boolean;
+    md5Checksum?: string;
 }
 
 /**
@@ -592,7 +607,21 @@ export async function getPluginVersionHistory(
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const releases: any[] = await res.json();
+        let releases: any[] = [];
+        try {
+            releases = await res.json();
+        } catch {
+            releases = [];
+        }
+
+        if (!Array.isArray(releases)) {
+            console.warn(`Unexpected API response from ${repo.owner}/${repo.repo}:`, releases);
+            if (fs.existsSync(cacheFile)) {
+                try { return JSON.parse(fs.readFileSync(cacheFile, 'utf-8')); } catch { /* empty */ }
+            }
+            return [];
+        }
+
         const versions: VersionEntry[] = [];
 
         for (const release of releases) {
@@ -605,19 +634,39 @@ export async function getPluginVersionHistory(
             const body = release.body || '';
             const localDescriptionUrl = cacheHistoricalDescription(pluginId, resolvedTag, body);
 
-            let cipxDownloadUrl = cipxAsset?.browser_download_url || undefined;
+            const cipxDownloadUrl = cipxAsset?.browser_download_url || undefined;
             let cipxChunkManifestUrl: string | undefined;
             let cipxSize = cipxAsset?.size || undefined;
+            let md5Checksum: string | undefined;
+
             if (cipxAsset?.browser_download_url) {
                 const cached = await cacheHistoricalCipx(pluginId, resolvedTag, cipxAsset.browser_download_url);
-                if (cached.localUrl) {
-                    cipxDownloadUrl = cached.localUrl;
-                }
                 if (cached.chunkManifestUrl) {
                     cipxChunkManifestUrl = cached.chunkManifestUrl;
                 }
                 if (cached.size !== undefined) {
                     cipxSize = cached.size;
+                }
+            }
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const md5Asset = release.assets?.find((a: any) =>
+                a.name?.endsWith('.cipx.md5') || a.name?.endsWith('.md5') || a.name?.toLowerCase() === 'md5.txt'
+            );
+
+            if (md5Asset && md5Asset.browser_download_url) {
+                try {
+                    const md5Res = await fetchWithRetry(md5Asset.browser_download_url);
+                    if (md5Res.ok) {
+                        const md5Text = await md5Res.text();
+                        // Extract first hex-like string
+                        const match = md5Text.match(/[a-fA-F0-9]{32}/);
+                        if (match) {
+                            md5Checksum = match[0].toLowerCase();
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Failed to fetch MD5 checksum for ${pluginId}@${resolvedTag}:`, e);
                 }
             }
 
@@ -632,6 +681,7 @@ export async function getPluginVersionHistory(
                 cipxSize,
                 localDescriptionUrl,
                 prerelease: release.prerelease || false,
+                md5Checksum,
             });
         }
 

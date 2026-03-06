@@ -43,7 +43,5 @@ next-env.d.ts
 
 # plugin cache
 /.plugin-cache/
-/public/icons/
-/public/cipx/
-/public/readme-images/
-/public/readmes/
+/public/*
+!/public/favicon.ico

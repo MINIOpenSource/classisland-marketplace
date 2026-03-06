@@ -77,6 +77,11 @@ const useStyles = makeStyles({
         ':active': {
             transform: 'translateY(0)',
         },
+    },
+    desktopText: {
+        '@media (max-width: 600px)': {
+            display: 'none',
+        }
     }
 });
 
@@ -91,7 +96,10 @@ export function Header() {
             <div className={styles.titleWrap}>
                 <Avatar className={styles.logoAvatar} image={{ src: '/favicon.ico' }} name="ClassIsland" shape="square" size={32} />
                 <Title1 as="h1" className={styles.titleText}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>ClassIsland Marketplace</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span className={styles.desktopText}>ClassIsland </span>
+                        Marketplace
+                    </span>
                     <Badge appearance="tint" shape="rounded" color="brand" style={{ fontSize: '12px', paddingTop: '2px', flexShrink: 0 }}>{t('preview')}</Badge>
                 </Title1>
             </div>
@@ -110,7 +118,12 @@ export function Header() {
                     <MenuPopover>
                         <MenuList>
                             <MenuItem onClick={() => setLocale('zh_CN')}>中文 (简体)</MenuItem>
-                            <MenuItem onClick={() => setLocale('en_US')}>English</MenuItem>
+                            <MenuItem onClick={() => setLocale('en_US')}>English (US)</MenuItem>
+                            <MenuItem onClick={() => setLocale('en_UK')}>English (UK)</MenuItem>
+                            <MenuItem onClick={() => setLocale('en')}>English</MenuItem>
+                            <MenuItem onClick={() => setLocale('fr')}>Français</MenuItem>
+                            <MenuItem onClick={() => setLocale('du')}>Dutch / Deutsch</MenuItem>
+                            <MenuItem onClick={() => setLocale('jp')}>日本語</MenuItem>
                         </MenuList>
                     </MenuPopover>
                 </Menu>

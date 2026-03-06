@@ -47,7 +47,11 @@
         "current": "当前",
         "prerelease": "预发布",
         "downloadVersion": "下载此版本",
-        "showAllVersions": "显示全部 {count} 个版本"
+        "showAllVersions": "显示全部 {count} 个版本",
+        "showLessVersions": "收起较早版本",
+        "downloadComplete": "下载完成",
+        "checksumDesc": "以下是下载文件的 MD5 校验和：",
+        "downloadChecksum": "下载 .checksum 文件"
     },
     "NotFound": {
         "code": "404",

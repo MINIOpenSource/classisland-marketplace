@@ -17,10 +17,13 @@ import {
     HistoryRegular,
     CheckmarkCircleRegular,
     ArrowCircleDownRegular,
+    DocumentFooterRegular,
 } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
-import { useState, useMemo } from 'react';
-import { downloadCipxByManifest } from '@/utils/cipxDownloader';
+import { useState, useRef } from 'react';
+import MarkdownPreview from '@uiw/react-markdown-preview';
+import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
+import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
 
 export interface VersionEntry {
     version: string;
@@ -33,6 +36,7 @@ export interface VersionEntry {
     cipxSize?: number;
     localDescriptionUrl?: string;
     prerelease: boolean;
+    md5Checksum?: string;
 }
 
 function formatBytes(bytes?: number, decimals = 2) {
@@ -83,7 +87,7 @@ const useStyles = makeStyles({
         borderRadius: tokens.borderRadiusXLarge,
         border: `1px solid ${tokens.colorNeutralStroke2}`,
         boxShadow: tokens.shadow4,
-        overflow: 'hidden',
+        overflow: 'clip',
         animationName: {
             from: { opacity: 0, transform: 'translateY(16px)' },
             to: { opacity: 1, transform: 'translateY(0)' },
@@ -105,6 +109,12 @@ const useStyles = makeStyles({
         padding: '20px 28px',
         cursor: 'pointer',
         userSelect: 'none',
+        position: 'sticky',
+        top: '72px',
+        zIndex: 10,
+        backgroundColor: tokens.colorNeutralBackground1,
+        borderTopLeftRadius: tokens.borderRadiusXLarge,
+        borderTopRightRadius: tokens.borderRadiusXLarge,
         transition: 'background-color 150ms ease',
         '&:hover': {
             backgroundColor: tokens.colorNeutralBackground1Hover,
@@ -131,14 +141,22 @@ const useStyles = makeStyles({
         gap: '8px',
     },
     timeline: {
-        padding: '0 28px 24px 28px',
+        padding: '16px 28px 24px 28px',
         position: 'relative',
+        animationName: {
+            from: { opacity: 0, transform: 'translateY(-10px)' },
+            to: { opacity: 1, transform: 'translateY(0)' },
+        },
+        animationDuration: '0.2s',
+        animationTimingFunction: 'ease-out',
+        animationFillMode: 'both',
     },
     timelineItem: {
         display: 'flex',
         gap: '16px',
         position: 'relative',
         paddingBottom: '24px',
+        transition: 'opacity 200ms ease, transform 200ms ease',
         '&:last-child': {
             paddingBottom: '0',
         },
@@ -215,13 +233,11 @@ const useStyles = makeStyles({
         backgroundColor: tokens.colorNeutralBackground2,
         borderRadius: tokens.borderRadiusMedium,
         border: `1px solid ${tokens.colorNeutralStroke3}`,
-        fontSize: '13px',
-        lineHeight: '1.5',
-        color: tokens.colorNeutralForeground2,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        maxHeight: '120px',
+        maxHeight: '250px',
         overflowY: 'auto',
+        '& [data-color-mode*="light"], & [data-color-mode*="dark"]': {
+            backgroundColor: 'transparent !important',
+        },
     },
     downloadBtn: {
         marginTop: '8px',
@@ -239,8 +255,6 @@ const useStyles = makeStyles({
     },
 });
 
-const INITIAL_SHOW = 5;
-
 export function VersionHistory({
     versions,
     currentVersion,
@@ -251,30 +265,43 @@ export function VersionHistory({
     const styles = useStyles();
     const t = useTranslations('Index');
     const [expanded, setExpanded] = useState(false);
-    const [showAll, setShowAll] = useState(false);
     const [downloadingTag, setDownloadingTag] = useState<string | null>(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    const displayVersions = useMemo(() => {
-        if (showAll) return versions;
-        return versions.slice(0, INITIAL_SHOW);
-    }, [versions, showAll]);
+    const toggleExpanded = () => {
+        if (expanded && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            if (rect.top < 72) {
+                window.scrollTo({
+                    top: window.scrollY + rect.top - 72,
+                });
+            }
+        }
+        setExpanded(!expanded);
+    };
 
     if (!versions || versions.length === 0) {
         return null;
     }
 
     return (
-        <div className={styles.container}>
+        <div className={styles.container} ref={containerRef}>
             <div
                 className={styles.header}
-                onClick={() => setExpanded(!expanded)}
+                style={{
+                    borderBottomLeftRadius: expanded ? 0 : tokens.borderRadiusXLarge,
+                    borderBottomRightRadius: expanded ? 0 : tokens.borderRadiusXLarge,
+                    borderBottom: expanded ? `1px solid ${tokens.colorNeutralStroke2}` : '1px solid transparent'
+                }}
+                onClick={toggleExpanded}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        setExpanded(!expanded);
+                        toggleExpanded();
                     }
                 }}
                 aria-expanded={expanded}
@@ -308,20 +335,20 @@ export function VersionHistory({
 
             {expanded && (
                 <div className={styles.timeline}>
-                    {displayVersions.map((entry, idx) => {
+                    {versions.map((entry, idx) => {
                         const isCurrent = entry.version === currentVersion;
                         return (
                             <div key={entry.tagName || idx} className={styles.timelineItem}>
                                 <div className={styles.timelineLine}>
                                     <div
                                         className={`${styles.timelineDot} ${isCurrent
-                                                ? styles.timelineDotActive
-                                                : entry.prerelease
-                                                    ? styles.timelineDotPre
-                                                    : ''
+                                            ? styles.timelineDotActive
+                                            : entry.prerelease
+                                                ? styles.timelineDotPre
+                                                : ''
                                             }`}
                                     />
-                                    {idx < displayVersions.length - 1 && (
+                                    {idx < versions.length - 1 && (
                                         <div className={styles.timelineConnector} />
                                     )}
                                 </div>
@@ -368,9 +395,22 @@ export function VersionHistory({
                                                 {formatBytes(entry.cipxSize)}
                                             </span>
                                         )}
+                                        {entry.md5Checksum && (
+                                            <Tooltip content={entry.md5Checksum} relationship="label">
+                                                <span className={styles.metaItem}>
+                                                    <DocumentFooterRegular fontSize={14} />
+                                                    MD5: {entry.md5Checksum.substring(0, 8)}...
+                                                </span>
+                                            </Tooltip>
+                                        )}
                                     </div>
                                     {entry.body && entry.body.trim() && (
-                                        <div className={styles.versionBody}>{entry.body.trim()}</div>
+                                        <div className={styles.versionBody}>
+                                            <MarkdownPreview
+                                                source={entry.body.trim()}
+                                                style={{ backgroundColor: 'transparent', fontSize: '13px', color: 'inherit' }}
+                                            />
+                                        </div>
                                     )}
                                     {(entry.cipxDownloadUrl || entry.cipxChunkManifestUrl) && (
                                         <Button
@@ -389,13 +429,35 @@ export function VersionHistory({
                                                         onProgress: ({ completedChunks, totalChunks }) => {
                                                             setDownloadProgress(totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0);
                                                         },
+                                                    }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch(() => {
+                                                        if (entry.cipxDownloadUrl) {
+                                                            downloadFileUrl(entry.cipxDownloadUrl, {
+                                                                fallbackFileName: `${key || 'plugin'}.cipx`,
+                                                                onProgress: ({ loadedBytes, totalBytes }) => {
+                                                                    setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0);
+                                                                }
+                                                            }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch(() => {
+                                                                window.location.href = entry.cipxDownloadUrl!;
+                                                            });
+                                                        }
                                                     }).finally(() => {
                                                         setDownloadingTag(null);
                                                     });
                                                     return;
                                                 }
                                                 if (entry.cipxDownloadUrl) {
-                                                    window.location.href = entry.cipxDownloadUrl;
+                                                    setDownloadingTag(key);
+                                                    setDownloadProgress(0);
+                                                    downloadFileUrl(entry.cipxDownloadUrl, {
+                                                        fallbackFileName: `${key || 'plugin'}.cipx`,
+                                                        onProgress: ({ loadedBytes, totalBytes }) => {
+                                                            setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0);
+                                                        }
+                                                    }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch(() => {
+                                                        window.location.href = entry.cipxDownloadUrl!;
+                                                    }).finally(() => {
+                                                        setDownloadingTag(null);
+                                                    });
                                                 }
                                             }}
                                         >
@@ -408,20 +470,9 @@ export function VersionHistory({
                             </div>
                         );
                     })}
-                    {versions.length > INITIAL_SHOW && !showAll && (
-                        <div className={styles.showMoreBtn}>
-                            <Button
-                                appearance="subtle"
-                                size="small"
-                                icon={<ChevronDownRegular />}
-                                onClick={() => setShowAll(true)}
-                            >
-                                {t('showAllVersions', { count: versions.length })}
-                            </Button>
-                        </div>
-                    )}
                 </div>
             )}
+            <ChecksumDialog info={checksumInfo} onClose={() => setChecksumInfo(null)} />
         </div>
     );
 }

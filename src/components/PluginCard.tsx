@@ -17,7 +17,8 @@ import Link from 'next/link';
 import { useInView } from 'react-intersection-observer';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import { downloadCipxByManifest } from '@/utils/cipxDownloader';
+import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
+import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
 
 export function formatBytes(bytes?: number, decimals = 2) {
     if (bytes === undefined || bytes === null || !+bytes) return '';
@@ -46,6 +47,12 @@ const useStyles = makeStyles({
     },
     cardWrapperHovering: {
         zIndex: 800,
+    },
+    cardWrapperTouchExpanded: {
+        zIndex: 801,
+        '@media (max-width: 700px)': {
+            height: 'auto',
+        }
     },
     card: {
         position: 'absolute',
@@ -93,6 +100,11 @@ const useStyles = makeStyles({
             },
             '&::after': {
                 opacity: 1,
+            }
+        },
+        '@media (max-width: 700px)': {
+            '&:hover': {
+                transform: 'translateY(-4px)',
             }
         },
         '&:focus-within': {
@@ -224,6 +236,34 @@ const useStyles = makeStyles({
     downloadButton: {
         borderRadius: tokens.borderRadiusLarge,
     },
+    overlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 800,
+        opacity: 0,
+        transition: 'opacity 0.25s ease',
+        pointerEvents: 'none',
+        '@media (max-width: 700px)': {
+            display: 'none'
+        }
+    },
+    overlayVisible: {
+        opacity: 1,
+        pointerEvents: 'auto',
+    },
+    cardTouchExpanded: {
+        transform: 'translateY(-4px) scale(1.03) !important',
+        boxShadow: `${tokens.shadow16} !important`,
+        border: `1px solid ${tokens.colorBrandStroke1} !important`,
+        '@media (max-width: 700px)': {
+            position: 'relative',
+            transform: 'translateY(-4px)',
+        }
+    }
 });
 
 export interface PluginData {
@@ -265,6 +305,8 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
     const delayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
+    const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
+    const [isTouchExpanded, setIsTouchExpanded] = useState(false);
 
     useEffect(() => {
         if (inView) {
@@ -305,16 +347,27 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
 
     const handleDownloadClick = (e: React.MouseEvent) => {
         e.preventDefault();
+        e.stopPropagation();
         if (plugin.LocalDownloadChunkManifest) {
-            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, { fallbackFileName: `${Manifest.Id}.cipx` }).catch(() => {
-                if (resolvedDownloadUrl) {
-                    window.location.href = resolvedDownloadUrl;
-                }
-            });
+            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, { fallbackFileName: `${Manifest.Id}.cipx` })
+                .then(res => setChecksumInfo(res))
+                .catch(() => {
+                    if (resolvedDownloadUrl) {
+                        downloadFileUrl(resolvedDownloadUrl, { fallbackFileName: `${Manifest.Id}.cipx` })
+                            .then(res => setChecksumInfo(res))
+                            .catch(() => {
+                                window.location.href = resolvedDownloadUrl;
+                            });
+                    }
+                });
             return;
         }
         if (resolvedDownloadUrl) {
-            window.location.href = resolvedDownloadUrl;
+            downloadFileUrl(resolvedDownloadUrl, { fallbackFileName: `${Manifest.Id}.cipx` })
+                .then(res => setChecksumInfo(res))
+                .catch(() => {
+                    window.location.href = resolvedDownloadUrl;
+                });
         }
     };
 
@@ -340,6 +393,34 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
     }, [isHovering]);
 
     useEffect(() => {
+        const handleBlur = () => {
+            setIsHovering(false);
+        };
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                setIsHovering(false);
+                setIsTouchExpanded(false);
+            }
+        };
+        const handleDocumentClick = (e: MouseEvent | TouchEvent) => {
+            if (isTouchExpanded && cardRef.current && !cardRef.current.contains(e.target as Node)) {
+                setIsTouchExpanded(false);
+                setIsHovering(false);
+            }
+        };
+        window.addEventListener('blur', handleBlur);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('touchstart', handleDocumentClick, { capture: true });
+        document.addEventListener('mousedown', handleDocumentClick, { capture: true });
+        return () => {
+            window.removeEventListener('blur', handleBlur);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('touchstart', handleDocumentClick, { capture: true });
+            document.removeEventListener('mousedown', handleDocumentClick, { capture: true });
+        };
+    }, [isTouchExpanded]);
+
+    useEffect(() => {
         const updateHeight = () => {
             if (cardRef.current && !isHoveringRef.current) {
                 setBaseHeight(cardRef.current.offsetHeight);
@@ -351,136 +432,195 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
         return () => window.removeEventListener('resize', updateHeight);
     }, [Manifest.Description, Manifest.Id, Manifest.Name, Manifest.Version, Manifest.Author]);
 
+    useEffect(() => {
+        if (!isHovering) {
+            const timer = setTimeout(() => {
+                if (cardRef.current && !isHoveringRef.current) {
+                    setBaseHeight(cardRef.current.offsetHeight);
+                }
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [isHovering]);
+
     const transitionId = Manifest.Id.replace(/[^a-zA-Z0-9]/g, '-');
 
     return (
-        <div
-            ref={ref}
-            className={mergeClasses(styles.cardWrapper, isVisible && styles.cardWrapperVisible, isHovering && styles.cardWrapperHovering)}
-            style={baseHeight ? { height: `${baseHeight}px` } : undefined}
-            onMouseEnter={() => {
-                router.prefetch(`/plugin/${Manifest.Id}`);
-                if (iconSrc) {
-                    const img = new Image();
-                    img.src = iconSrc;
-                }
-                if (plugin.LocalReadmeUrl) {
-                    fetch(plugin.LocalReadmeUrl)
-                        .then(res => res.text())
-                        .then(text => {
-                            const mdRegex = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-                            const htmlRegex = /<img[^>]+src=["']([^"']+)["']/gi;
-                            let match;
-                            while ((match = mdRegex.exec(text)) !== null) {
-                                if (match[1]) new Image().src = match[1];
+        <>
+            {/* The overlay is rendered outside the wrapper to avoid clipping/z-index issues from siblings */}
+            {isTouchExpanded && (
+                <div
+                    className={mergeClasses(styles.overlay, isTouchExpanded && styles.overlayVisible)}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsTouchExpanded(false);
+                        setIsHovering(false);
+                    }}
+                    onTouchStart={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsTouchExpanded(false);
+                        setIsHovering(false);
+                    }}
+                />
+            )}
+            <div
+                ref={ref}
+                className={mergeClasses(
+                    styles.cardWrapper,
+                    isVisible && styles.cardWrapperVisible,
+                    isHovering && styles.cardWrapperHovering,
+                    isTouchExpanded && styles.cardWrapperTouchExpanded
+                )}
+                style={baseHeight ? { height: `${baseHeight}px` } : undefined}
+                onMouseEnter={() => {
+                    router.prefetch(`/plugin/${Manifest.Id}`);
+                    if (iconSrc) {
+                        const img = new Image();
+                        img.src = iconSrc;
+                    }
+                    if (plugin.LocalReadmeUrl) {
+                        fetch(plugin.LocalReadmeUrl)
+                            .then(res => res.text())
+                            .then(text => {
+                                const mdRegex = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+                                const htmlRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+                                let match;
+                                while ((match = mdRegex.exec(text)) !== null) {
+                                    if (match[1]) new Image().src = match[1];
+                                }
+                                while ((match = htmlRegex.exec(text)) !== null) {
+                                    if (match[1]) new Image().src = match[1];
+                                }
+                            })
+                            .catch(() => { });
+                    } else if (Manifest.Readme) {
+                        fetch(Manifest.Readme, { mode: 'no-cors' }).catch(() => { });
+                    }
+                    if (!isTouchExpanded) {
+                        setIsHovering(true);
+                    }
+                }}
+                onMouseLeave={() => {
+                    if (!isTouchExpanded) setIsHovering(false);
+                }}
+            >
+                <Link
+                    href={`/plugin/${Manifest.Id}`}
+                    style={{ textDecoration: 'none', display: 'block' }}
+                    onClick={(e) => {
+                        if (window.matchMedia("(hover: none)").matches && !isTouchExpanded) {
+                            e.preventDefault();
+                            setIsTouchExpanded(true);
+                            setIsHovering(true);
+                        }
+                    }}
+                >
+                    <Card
+                        className={mergeClasses(styles.card, isTouchExpanded && styles.cardTouchExpanded)}
+                        ref={cardRef}
+                        onMouseMove={handleMouseMove}
+                        onMouseLeave={() => {
+                            if (!isTouchExpanded) setIsHovering(false);
+                        }}
+                        style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}
+                    >
+                        <CardHeader
+                            image={
+                                <div style={{ viewTransitionName: `avatar-img-${transitionId}` } as React.CSSProperties}>
+                                    <Avatar
+                                        image={iconSrc ? { src: iconSrc } : undefined}
+                                        name={Manifest.Name}
+                                        shape="square"
+                                        size={48}
+                                    />
+                                </div>
                             }
-                            while ((match = htmlRegex.exec(text)) !== null) {
-                                if (match[1]) new Image().src = match[1];
+                            header={
+                                <Text weight="semibold" size={400} as="h3" className={styles.truncate} style={{ margin: 0, display: 'block', viewTransitionName: `title-text-${transitionId}` } as React.CSSProperties}>
+                                    {Manifest.Name}
+                                </Text>
                             }
-                        })
-                        .catch(() => { });
-                } else if (Manifest.Readme) {
-                    fetch(Manifest.Readme, { mode: 'no-cors' }).catch(() => { });
-                }
-                setIsHovering(true);
-            }}
-            onMouseLeave={() => setIsHovering(false)}
-        >
-            <Link href={`/plugin/${Manifest.Id}`} style={{ textDecoration: 'none', display: 'block' }}>
-                <Card className={styles.card} ref={cardRef} onMouseMove={handleMouseMove} style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}>
-                    <CardHeader
-                        image={
-                            <div style={{ viewTransitionName: `avatar-img-${transitionId}` } as React.CSSProperties}>
-                                <Avatar
-                                    image={iconSrc ? { src: iconSrc } : undefined}
-                                    name={Manifest.Name}
-                                    shape="square"
-                                    size={48}
+                            description={
+                                <div style={{ display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
+                                    <Text size={300} className={styles.truncate} style={{ color: tokens.colorNeutralForeground3 }}>
+                                        {Manifest.Author || t('anonymous')}
+                                    </Text>
+                                    <Text size={200} className={styles.truncate} style={{ color: tokens.colorNeutralForeground4 }}>
+                                        {t('version')} {Manifest.Version}{fileSizeStr ? ` • ${fileSizeStr}` : ''}
+                                    </Text>
+                                </div>
+                            }
+                        />
+                        <div className={mergeClasses(styles.hoverInfo, isHovering ? styles.hoverInfoVisible : styles.hoverInfoHidden)}>
+                            <p className={styles.hoverDescription}>
+                                {Manifest.Description || "No description provided."}
+                            </p>
+                            <div className={styles.hoverIdRow}>
+                                <span className={styles.hoverId} title={Manifest.Id}>{Manifest.Id}</span>
+                                <Button
+                                    appearance="subtle"
+                                    icon={copied ? <CheckmarkRegular /> : <CopyRegular />}
+                                    className={styles.copyButton}
+                                    onClick={handleCopyId}
+                                    title={copied ? t('copied') : t('copyId')}
                                 />
                             </div>
-                        }
-                        header={
-                            <Text weight="semibold" size={400} as="h3" style={{ margin: 0, display: 'inline-block', viewTransitionName: `title-text-${transitionId}` } as React.CSSProperties}>
-                                {Manifest.Name}
-                            </Text>
-                        }
-                        description={
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <Text size={300} className={styles.truncate} style={{ color: tokens.colorNeutralForeground3 }}>
-                                    {Manifest.Author || t('anonymous')}
-                                </Text>
-                                <Text size={200} className={styles.truncate} style={{ color: tokens.colorNeutralForeground4 }}>
-                                    {t('version')} {Manifest.Version}{fileSizeStr ? ` • ${fileSizeStr}` : ''}
-                                </Text>
-                            </div>
-                        }
-                    />
-                    <div className={mergeClasses(styles.hoverInfo, isHovering ? styles.hoverInfoVisible : styles.hoverInfoHidden)}>
-                        <p className={styles.hoverDescription}>
-                            {Manifest.Description || "No description provided."}
-                        </p>
-                        <div className={styles.hoverIdRow}>
-                            <span className={styles.hoverId} title={Manifest.Id}>{Manifest.Id}</span>
-                            <Button
-                                appearance="subtle"
-                                icon={copied ? <CheckmarkRegular /> : <CopyRegular />}
-                                className={styles.copyButton}
-                                onClick={handleCopyId}
-                                title={copied ? t('copied') : t('copyId')}
-                            />
                         </div>
-                    </div>
-                    <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
-                    <CardFooter style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
-                        <div className={styles.statsRow} style={{ marginTop: 0 }}>
-                            <div className={styles.stat} title={t('downloads')}>
-                                <ArrowDownloadRegular fontSize={16} />
-                                <Text size={200}>{DownloadCount}</Text>
+                        <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
+                        <CardFooter style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                            <div className={styles.statsRow} style={{ marginTop: 0 }}>
+                                <div className={styles.stat} title={t('downloads')}>
+                                    <ArrowDownloadRegular fontSize={16} />
+                                    <Text size={200}>{DownloadCount}</Text>
+                                </div>
+                                <div className={styles.stat} title={t('stars')}>
+                                    <StarRegular fontSize={16} />
+                                    <Text size={200}>{StarsCount}</Text>
+                                </div>
                             </div>
-                            <div className={styles.stat} title={t('stars')}>
-                                <StarRegular fontSize={16} />
-                                <Text size={200}>{StarsCount}</Text>
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                            {isWin ? (
-                                <>
-                                    <Button
-                                        appearance="primary"
-                                        size="small"
-                                        className={mergeClasses(styles.actionButton, styles.installButton)}
-                                        style={{ flex: 1 }}
-                                        icon={<OpenRegular />}
-                                        onClick={handleInstallClick}
-                                    >
-                                        {t('install')}
-                                    </Button>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                {isWin ? (
+                                    <>
+                                        <Button
+                                            appearance="primary"
+                                            size="small"
+                                            className={mergeClasses(styles.actionButton, styles.installButton)}
+                                            style={{ flex: 1 }}
+                                            icon={<OpenRegular />}
+                                            onClick={handleInstallClick}
+                                        >
+                                            {t('install')}
+                                        </Button>
+                                        <Button
+                                            appearance="outline"
+                                            size="small"
+                                            className={mergeClasses(styles.actionButton, styles.downloadButton)}
+                                            icon={<ArrowDownloadRegular />}
+                                            onClick={handleDownloadClick}
+                                        >
+                                            {t('download')}
+                                        </Button>
+                                    </>
+                                ) : (
                                     <Button
                                         appearance="outline"
                                         size="small"
                                         className={mergeClasses(styles.actionButton, styles.downloadButton)}
+                                        style={{ flex: 1 }}
                                         icon={<ArrowDownloadRegular />}
                                         onClick={handleDownloadClick}
                                     >
-                                        {t('download')}
+                                        {fileSizeStr || t('download')}
                                     </Button>
-                                </>
-                            ) : (
-                                <Button
-                                    appearance="outline"
-                                    size="small"
-                                    className={mergeClasses(styles.actionButton, styles.downloadButton)}
-                                    style={{ flex: 1 }}
-                                    icon={<ArrowDownloadRegular />}
-                                    onClick={handleDownloadClick}
-                                >
-                                    {fileSizeStr || t('download')}
-                                </Button>
-                            )}
-                        </div>
-                    </CardFooter>
-                </Card>
-            </Link>
-        </div>
+                                )}
+                            </div>
+                        </CardFooter>
+                    </Card>
+                </Link>
+                <ChecksumDialog info={checksumInfo} onClose={() => setChecksumInfo(null)} />
+            </div>
+        </>
     );
 }

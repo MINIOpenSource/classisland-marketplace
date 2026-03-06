@@ -24,7 +24,8 @@ import { useState, useEffect } from 'react';
 import { VersionHistory } from './VersionHistory';
 import type { VersionEntry } from '@/services/pluginIndex';
 import Image from 'next/image';
-import { downloadCipxByManifest } from '@/utils/cipxDownloader';
+import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
+import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
 
 function formatBytes(bytes?: number, decimals = 2) {
     if (bytes === undefined || bytes === null || !+bytes) return '';
@@ -86,14 +87,38 @@ const useStyles = makeStyles({
         }
     },
     headerInfo: {
-        display: 'flex',
-        gap: '32px',
-        alignItems: 'flex-start'
+        display: 'grid',
+        gridTemplateAreas: `
+            "avatar title"
+            "avatar meta"
+        `,
+        gridTemplateColumns: 'min-content 1fr',
+        gap: '8px 32px',
+        alignItems: 'flex-start',
+        '@media (max-width: 768px)': {
+            gridTemplateAreas: `
+                "avatar title"
+                "meta meta"
+            `,
+            gap: '12px 16px',
+        }
     },
     titleSection: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px'
+        gap: '8px',
+        gridArea: 'title'
+    },
+    metaSection: {
+        display: 'flex',
+        flexDirection: 'column',
+        gridArea: 'meta'
+    },
+    headerAvatar: {
+        '@media (max-width: 768px)': {
+            width: '48px !important',
+            height: '48px !important',
+        }
     },
     pluginIdRow: {
         display: 'flex',
@@ -152,21 +177,25 @@ const useStyles = makeStyles({
             border: `1px solid ${tokens.colorNeutralStroke1}`,
         },
     },
+    actionButtonsContainer: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '8px',
+        '@media (max-width: 768px)': {
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+        }
+    },
     actionButtonsRow: {
         display: 'flex',
         gap: '8px',
         alignItems: 'stretch',
         '@media (max-width: 768px)': {
-            paddingRight: '44px',
+            justifyContent: 'center',
+            width: '100%',
         }
-    },
-    // Fixed 1:1 icon-only button
-    iconBtn: {
-        borderRadius: tokens.borderRadiusLarge,
-        minWidth: '48px',
-        width: '48px',
-        height: '48px',
-        padding: '0',
     },
     actionButton: {
         transition: 'transform 170ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 170ms ease',
@@ -178,33 +207,33 @@ const useStyles = makeStyles({
             transform: 'translateY(0)',
         }
     },
+    responsiveButton: {
+        borderRadius: tokens.borderRadiusLarge,
+        height: '48px',
+        padding: '0 24px',
+        fontSize: '16px',
+        fontWeight: tokens.fontWeightMedium,
+        transition: 'transform 170ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 170ms ease, padding 170ms ease, width 170ms ease',
+        ':hover': {
+            transform: 'translateY(-1px)',
+            boxShadow: tokens.shadow8,
+        },
+        ':active': {
+            transform: 'translateY(0)',
+        },
+        '@media (max-width: 768px)': {
+            minWidth: '48px',
+            width: '48px',
+            padding: '0',
+        }
+    },
+    buttonText: {
+        '@media (max-width: 768px)': {
+            display: 'none',
+        }
+    },
     backButton: {
         borderRadius: tokens.borderRadiusLarge,
-    },
-    embedRowButton: {
-        '@media (max-width: 768px)': {
-            display: 'none',
-        }
-    },
-    embedCornerBtn: {
-        display: 'none',
-        '@media (max-width: 768px)': {
-            display: 'inline-flex',
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            width: '34px',
-            height: '34px',
-            minWidth: '34px',
-            padding: 0,
-            borderRadius: tokens.borderRadiusLarge,
-            zIndex: 3,
-        }
-    },
-    installButton: {
-        '@media (max-width: 768px)': {
-            display: 'none',
-        }
     },
 });
 
@@ -224,6 +253,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
     const [confirmLink, setConfirmLink] = useState<string | null>(null);
     const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
+    const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
 
     const handleLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = (e.target as HTMLElement).closest('a');
@@ -259,20 +289,48 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
             setDownloadProgress(0);
             downloadCipxByManifest(plugin.LocalDownloadChunkManifest, {
                 fallbackFileName: `${Manifest.Id}.cipx`,
-                onProgress: ({ completedChunks, totalChunks }) => {
-                    setDownloadProgress(totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0);
+                onProgress: ({ completedChunks, totalChunks, loadedBytes, totalBytes }) => {
+                    if (totalBytes > 0) {
+                        setDownloadProgress(Math.round((loadedBytes / totalBytes) * 100));
+                    } else if (totalChunks > 0) {
+                        setDownloadProgress(Math.round((completedChunks / totalChunks) * 100));
+                    } else {
+                        setDownloadProgress(0);
+                    }
                 }
-            }).catch(() => {
+            }).then(res => setChecksumInfo(res)).catch(() => {
                 if (resolvedDownloadUrl) {
-                    window.location.href = resolvedDownloadUrl;
+                    setDownloadProgress(0);
+                    downloadFileUrl(resolvedDownloadUrl, {
+                        fallbackFileName: `${Manifest.Id}.cipx`,
+                        onProgress: ({ loadedBytes, totalBytes }) => {
+                            setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null);
+                        }
+                    }).then(res => setChecksumInfo(res)).catch(() => {
+                        window.location.href = resolvedDownloadUrl;
+                    }).finally(() => {
+                        setDownloadProgress(null);
+                    });
+                } else {
+                    setDownloadProgress(null);
                 }
             }).finally(() => {
-                setDownloadProgress(null);
+                if (!resolvedDownloadUrl) setDownloadProgress(null);
             });
             return;
         }
         if (resolvedDownloadUrl) {
-            window.location.href = resolvedDownloadUrl;
+            setDownloadProgress(0);
+            downloadFileUrl(resolvedDownloadUrl, {
+                fallbackFileName: `${Manifest.Id}.cipx`,
+                onProgress: ({ loadedBytes, totalBytes }) => {
+                    setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null);
+                }
+            }).then(res => setChecksumInfo(res)).catch(() => {
+                window.location.href = resolvedDownloadUrl;
+            }).finally(() => {
+                setDownloadProgress(null);
+            });
         }
     };
 
@@ -293,7 +351,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     const pluginDetailUrl = `${origin}/plugin/${Manifest.Id}`;
     const svgCardUrl = `${origin}/svg/plugin/${Manifest.Id}`;
     const iframeCardUrl = `${origin}/iframe/plugin/${Manifest.Id}`;
-    const svgEmbedCode = `<a href="${pluginDetailUrl}" target="_blank" rel="noopener noreferrer"><img src="${svgCardUrl}" alt="${escapedEmbedAlt}" width="400" height="180" style="border-radius: 8px; max-width: 100%; height: auto;" /></a>`;
+    const svgEmbedCode = `<img src="${svgCardUrl}" alt="${escapedEmbedAlt}" width="400" height="100" style="border-radius: 8px; max-width: 100%; height: auto;" />`;
     const iframeEmbedCode = `<iframe src="${iframeCardUrl}" width="400" height="180" frameborder="0" style="border-radius: 8px; overflow: hidden; max-width: 100%;"></iframe>`;
     const embedCode = embedType === 'svg' ? svgEmbedCode : iframeEmbedCode;
 
@@ -323,12 +381,13 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
 
             <div className={styles.headerCard} style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}>
                 <div className={styles.headerInfo}>
-                    <div style={{ viewTransitionName: `avatar-img-${transitionId}` } as React.CSSProperties}>
+                    <div style={{ viewTransitionName: `avatar-img-${transitionId}`, gridArea: 'avatar' } as React.CSSProperties}>
                         <Avatar
                             image={iconSrc ? { src: iconSrc } : undefined}
                             name={Manifest.Name}
                             shape="square"
-                            size={128}
+                            size={96}
+                            className={styles.headerAvatar}
                         />
                     </div>
                     <div className={styles.titleSection}>
@@ -336,6 +395,8 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                         <Text size={500} style={{ color: tokens.colorNeutralForeground2 }}>
                             {Manifest.Author || t('anonymous')} • {t('version')} {Manifest.Version}
                         </Text>
+                    </div>
+                    <div className={styles.metaSection}>
                         <div className={styles.pluginIdRow}>
                             <Text size={200} style={{ color: tokens.colorNeutralForeground4, fontFamily: 'monospace' }}>
                                 {Manifest.Id}
@@ -363,7 +424,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                         </div>
                     </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <div className={styles.actionButtonsContainer}>
                     <div className={styles.actionButtonsRow}>
                         <Button
                             appearance={isWin ? "primary" : "secondary"}
@@ -372,10 +433,9 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                             icon={<OpenRegular />}
                             onClick={handleInstall}
                             title={!isWin ? t('requiresWindows') : ""}
-                            className={`${styles.actionButton} ${styles.installButton}`}
-                            style={{ padding: '0 32px', fontSize: '16px', borderRadius: tokens.borderRadiusLarge, height: '48px' }}
+                            className={styles.responsiveButton}
                         >
-                            {t('install')}
+                            <span className={styles.buttonText}>{t('install')}</span>
                         </Button>
                         <Tooltip content={`${t('download')} (.cipx)${sizeStr ? ` - ${sizeStr}` : ''}`} relationship="label">
                             <Button
@@ -383,8 +443,10 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                 size="large"
                                 icon={<ArrowDownloadRegular />}
                                 onClick={handleDownload}
-                                className={`${styles.iconBtn} ${styles.actionButton}`}
-                            />
+                                className={styles.responsiveButton}
+                            >
+                                <span className={styles.buttonText}>{t('download')}</span>
+                            </Button>
                         </Tooltip>
                         {Manifest.Url && (
                             <Tooltip content={t('openInGitHub')} relationship="label">
@@ -393,8 +455,10 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                     size="large"
                                     icon={<GitHubIcon />}
                                     onClick={handleOpenGitHub}
-                                    className={`${styles.iconBtn} ${styles.actionButton}`}
-                                />
+                                    className={styles.responsiveButton}
+                                >
+                                    <span className={styles.buttonText}>{t('openInGitHub') || 'GitHub'}</span>
+                                </Button>
                             </Tooltip>
                         )}
                         <Tooltip content={t('embedCard') || 'Embed Card'} relationship="label">
@@ -406,22 +470,12 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                     setOrigin(window.location.origin);
                                     setEmbedDialogOpen(true);
                                 }}
-                                className={`${styles.iconBtn} ${styles.actionButton} ${styles.embedRowButton}`}
-                            />
+                                className={styles.responsiveButton}
+                            >
+                                <span className={styles.buttonText}>{t('embedCard') || 'Embed Card'}</span>
+                            </Button>
                         </Tooltip>
                     </div>
-                    <Tooltip content={t('embedCard') || 'Embed Card'} relationship="label">
-                        <Button
-                            appearance="outline"
-                            size="small"
-                            icon={<CodeRegular />}
-                            onClick={() => {
-                                setOrigin(window.location.origin);
-                                setEmbedDialogOpen(true);
-                            }}
-                            className={`${styles.embedCornerBtn} ${styles.actionButton}`}
-                        />
-                    </Tooltip>
                     {!isWin && <Text size={200} style={{ color: tokens.colorNeutralForeground4 }}>{t('requiresWindows')}</Text>}
                     {downloadProgress !== null && (
                         <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
@@ -505,16 +559,14 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                             <div style={{ marginTop: '16px', marginBottom: '16px' }}>
                                 {embedType === 'svg' ? (
                                     <>
-                                        <a href={`/plugin/${Manifest.Id}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%' }}>
-                                            <Image
-                                                src={`/svg/plugin/${Manifest.Id}`}
-                                                alt={Manifest.Name}
-                                                width={400}
-                                                height={180}
-                                                unoptimized
-                                                style={{ borderRadius: '8px', overflow: 'hidden', objectFit: 'cover', width: '100%', height: 'auto' }}
-                                            />
-                                        </a>
+                                        <Image
+                                            src={`/svg/plugin/${Manifest.Id}`}
+                                            alt={Manifest.Name}
+                                            width={400}
+                                            height={180}
+                                            unoptimized
+                                            style={{ borderRadius: '8px', overflow: 'hidden', objectFit: 'cover', width: '100%', height: 'auto' }}
+                                        />
                                         <Text size={200} style={{ color: tokens.colorNeutralForeground3, marginTop: '8px', display: 'block' }}>
                                             {t('embedCardClickHint')}
                                         </Text>
@@ -561,6 +613,8 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                     </DialogBody>
                 </DialogSurface>
             </Dialog>
+
+            <ChecksumDialog info={checksumInfo} onClose={() => setChecksumInfo(null)} />
         </div>
     );
 }

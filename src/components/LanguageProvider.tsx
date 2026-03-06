@@ -5,11 +5,21 @@ import { NextIntlClientProvider } from 'next-intl';
 
 import en_US from '../messages/en_US.json';
 import zh_CN from '../messages/zh_CN.json';
+import en_UK from '../messages/en_UK.json';
+import en from '../messages/en.json';
+import fr from '../messages/fr.json';
+import du from '../messages/du.json';
+import jp from '../messages/jp.json';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const messagesMap: Record<string, any> = {
     en_US,
-    zh_CN
+    zh_CN,
+    en_UK,
+    en,
+    fr,
+    du,
+    jp
 };
 
 type LocaleContextType = {
@@ -38,11 +48,32 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         if (saved && messagesMap[saved]) {
             setLocaleState(saved);
         } else {
-            // 2. Check browser language (zh-CN or similar defaults to zh_CN)
+            // 2. Check browser language
             const browserLang = navigator.language || navigator.languages?.[0];
-            if (browserLang && browserLang.toLowerCase().includes('zh')) {
-                setLocaleState('zh_CN');
-                localStorage.setItem('NEXT_LOCALE', 'zh_CN');
+            if (browserLang) {
+                const lang = browserLang.toLowerCase();
+                if (lang.includes('zh')) {
+                    setLocaleState('zh_CN');
+                    localStorage.setItem('NEXT_LOCALE', 'zh_CN');
+                } else if (lang.includes('fr')) {
+                    setLocaleState('fr');
+                    localStorage.setItem('NEXT_LOCALE', 'fr');
+                } else if (lang.includes('nl') || lang.includes('de') || lang === 'du') {
+                    setLocaleState('du');
+                    localStorage.setItem('NEXT_LOCALE', 'du');
+                } else if (lang.includes('ja') || lang === 'jp') {
+                    setLocaleState('jp');
+                    localStorage.setItem('NEXT_LOCALE', 'jp');
+                } else if (lang === 'en-gb' || lang === 'en-uk') {
+                    setLocaleState('en_UK');
+                    localStorage.setItem('NEXT_LOCALE', 'en_UK');
+                } else if (lang === 'en') {
+                    setLocaleState('en');
+                    localStorage.setItem('NEXT_LOCALE', 'en');
+                } else {
+                    setLocaleState('en_US');
+                    localStorage.setItem('NEXT_LOCALE', 'en_US');
+                }
             } else {
                 setLocaleState('en_US');
                 localStorage.setItem('NEXT_LOCALE', 'en_US');

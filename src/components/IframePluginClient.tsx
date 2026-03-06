@@ -11,7 +11,8 @@ import { ArrowDownloadRegular, StarRegular, OpenRegular, ShareRegular } from '@f
 import { useTranslations } from 'next-intl';
 import { PluginData, formatBytes } from './PluginCard';
 import { useState, useEffect } from 'react';
-import { downloadCipxByManifest } from '@/utils/cipxDownloader';
+import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
+import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
 
 const useStyles = makeStyles({
     container: {
@@ -106,6 +107,8 @@ export function IframePluginClient({ plugin }: { plugin: PluginData }) {
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
 
     const [fileSizeStr, setFileSizeStr] = useState<string | null>(FileSize ? formatBytes(FileSize) : null);
+    const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+    const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
 
     useEffect(() => {
         if (resolvedDownloadUrl && !fileSizeStr) {
@@ -138,15 +141,47 @@ export function IframePluginClient({ plugin }: { plugin: PluginData }) {
 
     const handleDownloadClick = () => {
         if (plugin.LocalDownloadChunkManifest) {
-            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, { fallbackFileName: `${Manifest.Id}.cipx` }).catch(() => {
-                if (resolvedDownloadUrl) {
-                    window.location.href = resolvedDownloadUrl;
+            setDownloadProgress(0);
+            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, {
+                fallbackFileName: `${Manifest.Id}.cipx`,
+                onProgress: ({ loadedBytes, totalBytes, completedChunks, totalChunks }) => {
+                    if (totalBytes > 0) {
+                        setDownloadProgress(Math.round((loadedBytes / totalBytes) * 100));
+                    } else if (totalChunks > 0) {
+                        setDownloadProgress(Math.round((completedChunks / totalChunks) * 100));
+                    } else {
+                        setDownloadProgress(0);
+                    }
                 }
+            }).then(res => setChecksumInfo(res)).catch(() => {
+                if (resolvedDownloadUrl) {
+                    setDownloadProgress(0);
+                    downloadFileUrl(resolvedDownloadUrl, {
+                        fallbackFileName: `${Manifest.Id}.cipx`,
+                        onProgress: ({ loadedBytes, totalBytes }) => {
+                            setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null);
+                        }
+                    }).then(res => setChecksumInfo(res)).catch(() => {
+                        window.location.href = resolvedDownloadUrl;
+                    }).finally(() => setDownloadProgress(null));
+                } else {
+                    setDownloadProgress(null);
+                }
+            }).finally(() => {
+                if (!resolvedDownloadUrl) setDownloadProgress(null);
             });
             return;
         }
         if (resolvedDownloadUrl) {
-            window.location.href = resolvedDownloadUrl;
+            setDownloadProgress(0);
+            downloadFileUrl(resolvedDownloadUrl, {
+                fallbackFileName: `${Manifest.Id}.cipx`,
+                onProgress: ({ loadedBytes, totalBytes }) => {
+                    setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null);
+                }
+            }).then(res => setChecksumInfo(res)).catch(() => {
+                window.location.href = resolvedDownloadUrl;
+            }).finally(() => setDownloadProgress(null));
         }
     };
 
@@ -183,7 +218,7 @@ export function IframePluginClient({ plugin }: { plugin: PluginData }) {
             </div>
             <div className={styles.actionArea}>
                 <Button appearance="subtle" icon={<ArrowDownloadRegular />} size="small" onClick={handleDownloadClick}>
-                    {t('download')} {fileSizeStr ? `${fileSizeStr} (.cipx)` : `(.cipx)`}
+                    {downloadProgress !== null ? `${t('download')} ${downloadProgress}%` : `${t('download')} ${fileSizeStr ? `${fileSizeStr} (.cipx)` : `(.cipx)`}`}
                 </Button>
                 <Button appearance="secondary" icon={<OpenRegular />} size="small" onClick={handleInstallClick}>
                     {t('installShort') || 'Install'}
@@ -192,6 +227,8 @@ export function IframePluginClient({ plugin }: { plugin: PluginData }) {
                     {t('marketplaceShort') || 'Marketplace'}
                 </Button>
             </div>
+
+            <ChecksumDialog info={checksumInfo} onClose={() => setChecksumInfo(null)} />
         </div>
     );
 }

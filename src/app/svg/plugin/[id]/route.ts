@@ -7,7 +7,7 @@ export const dynamicParams = false;
 export const revalidate = 3600;
 
 const CARD_WIDTH = 400;
-const CARD_HEIGHT = 180;
+const CARD_HEIGHT = 100;
 
 function escapeXml(value: string): string {
     return value
@@ -48,52 +48,93 @@ function buildSvg(plugin: {
     StarsCount: number;
     CachedIconFile?: string;
     RealIconPath?: string;
-}) {
+}, originUrl: string, tAnonymous: string) {
     const name = escapeXml(truncate(plugin.Manifest.Name || plugin.Manifest.Id, 24));
-    const author = escapeXml(truncate(plugin.Manifest.Author || 'Anonymous', 20));
+    const author = escapeXml(truncate(plugin.Manifest.Author || tAnonymous, 20));
     const version = escapeXml(truncate(plugin.Manifest.Version || '0.0.0', 16));
     const pluginId = escapeXml(truncate(plugin.Manifest.Id, 30));
     const downloadCount = escapeXml(formatCount(plugin.DownloadCount || 0));
     const starsCount = escapeXml(formatCount(plugin.StarsCount || 0));
-    const iconHref = escapeXml(resolveIconUrl(plugin));
+
+    let iconUrl = resolveIconUrl(plugin);
+    if (!iconUrl.startsWith('http')) {
+        iconUrl = new URL(iconUrl, originUrl).toString();
+    }
+    const iconHref = escapeXml(iconUrl);
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${name}">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="400" y2="180" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#F8FAFC"/>
-    </linearGradient>
-    <linearGradient id="hintBg" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#DCEEFB"/>
-      <stop offset="1" stop-color="#DBEAFE"/>
-    </linearGradient>
-    <clipPath id="iconClip">
-      <rect x="20" y="20" width="56" height="56" rx="12"/>
-    </clipPath>
-  </defs>
-  <rect x="0.5" y="0.5" width="399" height="179" rx="12" fill="url(#bg)" stroke="#E5E7EB"/>
-  <rect x="20" y="20" width="56" height="56" rx="12" fill="#EEF2FF"/>
-  <image href="${iconHref}" x="20" y="20" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#iconClip)"/>
-  <text x="88" y="42" fill="#111827" font-size="18" font-weight="700" font-family="Segoe UI, Arial, sans-serif">${name}</text>
-  <text x="88" y="63" fill="#6B7280" font-size="12" font-family="Segoe UI, Arial, sans-serif">${author} • v${version}</text>
-  <text x="88" y="82" fill="#9CA3AF" font-size="11" font-family="Consolas, Menlo, monospace">${pluginId}</text>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400&amp;family=Noto+Sans+SC:wght@400;600&amp;family=Noto+Sans:wght@400;600&amp;display=swap");
+  
+    .bg { fill: #ffffff; }
+    .border { stroke: #e0e0e0; stroke-width: 1; }
+    .shadow { filter: drop-shadow(0px 1.6px 3.6px rgba(0,0,0,0.13)) drop-shadow(0px 0.3px 0.9px rgba(0,0,0,0.11)); }
+    .title { fill: #242424; font-family: "Noto Sans SC", "Noto Sans", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 600; }
+    .subtitle { fill: #616161; font-family: "Noto Sans SC", "Noto Sans", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 400; }
+    .id { fill: #8a8a8a; font-family: "Google Sans Code", Consolas, "Courier New", monospace; font-size: 12px; font-weight: 400; }
+    .stat-bg { fill: #f5f5f5; }
+    .stat-text { fill: #424242; font-family: "Noto Sans SC", "Noto Sans", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 400; }
+    .icon { stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #292929; }
+      .border { stroke: #424242; stroke-width: 1; }
+      .shadow { filter: drop-shadow(0px 1.6px 3.6px rgba(0,0,0,0.4)) drop-shadow(0px 0.3px 0.9px rgba(0,0,0,0.3)); }
+      .title { fill: #ffffff; }
+      .subtitle { fill: #c0c0c0; }
+      .id { fill: #9e9e9e; }
+      .stat-bg { fill: #333333; }
+      .stat-text { fill: #c0c0c0; }
+    }
+  </style>
 
-  <rect x="286" y="20" width="94" height="56" rx="10" fill="#F3F4F6"/>
-  <text x="298" y="42" fill="#6B7280" font-size="12" font-family="Segoe UI, Arial, sans-serif">Downloads</text>
-  <text x="298" y="59" fill="#111827" font-size="14" font-weight="600" font-family="Segoe UI, Arial, sans-serif">${downloadCount}</text>
-  <text x="346" y="42" fill="#6B7280" font-size="12" font-family="Segoe UI, Arial, sans-serif">Stars</text>
-  <text x="346" y="59" fill="#111827" font-size="14" font-weight="600" font-family="Segoe UI, Arial, sans-serif">${starsCount}</text>
+  <g class="shadow">
+    <rect x="0.5" y="0.5" width="${CARD_WIDTH - 1}" height="${CARD_HEIGHT - 1}" rx="8" class="bg border"/>
 
-  <line x1="20" y1="102" x2="380" y2="102" stroke="#E5E7EB"/>
-  <rect x="20" y="116" width="116" height="30" rx="15" fill="url(#hintBg)"/>
-  <text x="34" y="136" fill="#1D4ED8" font-size="12" font-weight="600" font-family="Segoe UI, Arial, sans-serif">点击跳转</text>
-  <text x="320" y="136" fill="#9CA3AF" font-size="12" font-family="Segoe UI, Arial, sans-serif">↗</text>
+    <g transform="translate(16, 16)">
+        <clipPath id="logoClip"><rect x="0" y="0" width="56" height="56" rx="4" /></clipPath>
+        <image href="${iconHref}" x="0" y="0" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoClip)"/>
+
+        <text x="68" y="15" dominant-baseline="hanging" class="title">${name}</text>
+        <text x="68" y="37" dominant-baseline="hanging" class="subtitle">${author} <tspan fill="#616161">•</tspan> v${version}</text>
+        <text x="68" y="55" dominant-baseline="hanging" class="id">${pluginId}</text>
+    </g>
+    
+    <g transform="translate(316, 16)">
+        <rect x="0" y="0" width="68" height="68" rx="8" class="stat-bg"/>
+        
+        <g transform="translate(12, 8)">
+            <svg width="14" height="14" viewBox="0 0 24 24" class="subtitle icon">
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+                <line x1="4" y1="21" x2="20" y2="21"></line>
+            </svg>
+            <text x="20" y="11.5" dominant-baseline="middle" class="stat-text">${downloadCount}</text>
+        </g>
+        
+        <g transform="translate(12, 27)">
+            <svg width="14" height="14" viewBox="0 0 24 24" class="subtitle icon">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            <text x="20" y="11.5" dominant-baseline="middle" class="stat-text">${starsCount}</text>
+        </g>
+
+        <g transform="translate(12, 46)">
+            <svg width="14" height="14" viewBox="0 0 24 24" class="subtitle icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <text x="20" y="11.5" dominant-baseline="middle" class="stat-text">-</text>
+        </g>
+    </g>
+  </g>
 </svg>`;
 }
 
 export async function GET(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params;
@@ -103,7 +144,11 @@ export async function GET(
         return new Response('Not Found', { status: 404 });
     }
 
-    const svg = buildSvg(plugin);
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://marketplace.classisland.tech';
+
+    // Read cookie for locale or use default
+    // We'll just hardcode Anonymous since we don't have next-intl here, but ideally we match user lang.
+    const svg = buildSvg(plugin, origin, 'Anonymous');
 
     return new Response(svg, {
         status: 200,
