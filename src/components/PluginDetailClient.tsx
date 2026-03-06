@@ -22,6 +22,8 @@ import { PluginData } from './PluginCard';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { VersionHistory } from './VersionHistory';
+import { useTopBar } from './TopBarProvider';
+import { useInView } from 'react-intersection-observer';
 import type { VersionEntry } from '@/services/pluginIndex';
 import Image from 'next/image';
 import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
@@ -241,6 +243,21 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     const styles = useStyles();
     const t = useTranslations('Index');
     const router = useRouter();
+    const { setShowBack } = useTopBar();
+
+    const { ref: backBtnRef, inView: backBtnInView } = useInView({
+        initialInView: true,
+        threshold: 0,
+    });
+
+    useEffect(() => {
+        setShowBack(!backBtnInView);
+    }, [backBtnInView, setShowBack]);
+
+    useEffect(() => {
+        return () => setShowBack(false);
+    }, [setShowBack]);
+
     const [isWin, setIsWin] = useState(true);
     useEffect(() => {
         const timer = setTimeout(() => setIsWin(/Win/i.test(navigator.userAgent)), 0);
@@ -348,7 +365,6 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     };
 
     const escapedEmbedAlt = Manifest.Name.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-    const pluginDetailUrl = `${origin}/plugin/${Manifest.Id}`;
     const svgCardUrl = `${origin}/svg/plugin/${Manifest.Id}`;
     const iframeCardUrl = `${origin}/iframe/plugin/${Manifest.Id}`;
     const svgEmbedCode = `<img src="${svgCardUrl}" alt="${escapedEmbedAlt}" width="400" height="100" style="border-radius: 8px; max-width: 100%; height: auto;" />`;
@@ -368,7 +384,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     return (
         <div className={styles.container}>
             {/* Back button placed above the card */}
-            <div>
+            <div ref={backBtnRef}>
                 <Button
                     appearance="subtle"
                     icon={<ArrowLeftRegular />}

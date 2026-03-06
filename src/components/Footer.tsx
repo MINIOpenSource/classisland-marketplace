@@ -2,6 +2,7 @@
 
 import { makeStyles, tokens, Text } from '@fluentui/react-components';
 import packageJson from '../../package.json';
+import Link from 'next/link';
 
 const useStyles = makeStyles({
     footer: {
@@ -20,6 +21,15 @@ const useStyles = makeStyles({
         borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
         backgroundColor: tokens.colorNeutralBackground1,
         backdropFilter: 'blur(10px)',
+        textDecoration: 'none',
+    },
+    versionLink: {
+        color: 'inherit',
+        textDecoration: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '2px',
     },
     warning: {
         color: tokens.colorPaletteRedForeground1,
@@ -43,27 +53,29 @@ export function Footer() {
 
     return (
         <footer className={styles.footer}>
-            <Text size={300}>ClassIsland Marketplace v{packageJson.version}</Text>
-            {isDev && (
-                <Text size={200} weight="semibold" className={styles.warning}>
-                    开发中版本，不代表最终效果
-                </Text>
-            )}
-            {!isDev && (
-                <Text size={200} className={styles.info}>
-                    Build at {buildTime} ({buildHash})
-                </Text>
-            )}
-            {isCFPages && (
-                <Text size={200} className={styles.info}>
-                    Deployed on Cloudflare Pages
-                </Text>
-            )}
-            {isVercel && (
-                <Text size={200} className={styles.info}>
-                    Deployed on Vercel
-                </Text>
-            )}
+            <Link href="/about" className={styles.versionLink}>
+                <Text size={300}>ClassIsland Marketplace v{packageJson.version}</Text>
+                {isDev && (
+                    <Text size={200} weight="semibold" className={styles.warning}>
+                        开发中版本，不代表最终效果
+                    </Text>
+                )}
+                {!isDev && (
+                    <Text size={200} className={styles.info}>
+                        Build at {buildTime} ({buildHash})
+                    </Text>
+                )}
+                {isCFPages && (
+                    <Text size={200} className={styles.info}>
+                        Deployed on Cloudflare Pages
+                    </Text>
+                )}
+                {isVercel && (
+                    <Text size={200} className={styles.info}>
+                        Deployed on Vercel
+                    </Text>
+                )}
+            </Link>
         </footer>
     );
 }

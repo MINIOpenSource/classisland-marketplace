@@ -13,10 +13,12 @@ import {
     Avatar,
     Badge
 } from '@fluentui/react-components';
-import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular } from '@fluentui/react-icons';
+import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular, ArrowLeftRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import { useLocale } from '@/components/LanguageProvider';
 import { useTheme } from '@/components/ThemeProvider';
+import { useTopBar } from '@/components/TopBarProvider';
+import { useRouter } from 'next/navigation';
 
 const useStyles = makeStyles({
     header: {
@@ -90,10 +92,30 @@ export function Header() {
     const t = useTranslations('Index');
     const { setLocale } = useLocale();
     const { isDark, toggleTheme } = useTheme();
+    const { showBack } = useTopBar();
+    const router = useRouter();
 
     return (
         <header className={styles.header}>
             <div className={styles.titleWrap}>
+                <div style={{
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: showBack ? '38px' : '0',
+                    opacity: showBack ? 1 : 0,
+                    marginRight: showBack ? '8px' : '0',
+                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                }}>
+                    <Button
+                        appearance="transparent"
+                        icon={<ArrowLeftRegular />}
+                        onClick={() => router.back()}
+                        style={{ minWidth: '32px', padding: 0 }}
+                        title={t('back') || 'Back'}
+                    />
+                </div>
                 <Avatar className={styles.logoAvatar} image={{ src: '/favicon.ico' }} name="ClassIsland" shape="square" size={32} />
                 <Title1 as="h1" className={styles.titleText}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
