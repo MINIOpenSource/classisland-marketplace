@@ -71,7 +71,8 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
 
     const chunkBuffers = await Promise.all(
         manifest.chunks.map(async (chunkUrl) => {
-            const url = new URL(chunkUrl, manifestUrl).toString();
+            const baseUrl = manifestUrl.startsWith('http') ? manifestUrl : new URL(manifestUrl, window.location.origin).toString();
+            const url = new URL(chunkUrl, baseUrl).toString();
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) {
                 throw new Error(`Failed to fetch chunk: HTTP ${res.status}`);

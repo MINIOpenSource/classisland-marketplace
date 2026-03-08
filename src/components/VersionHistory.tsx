@@ -429,7 +429,8 @@ export function VersionHistory({
                                                         onProgress: ({ completedChunks, totalChunks }) => {
                                                             setDownloadProgress(totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0);
                                                         },
-                                                    }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch(() => {
+                                                    }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch((err) => {
+                                                        console.error('Failed to download from manifest:', err);
                                                         if (entry.cipxDownloadUrl) {
                                                             downloadFileUrl(entry.cipxDownloadUrl, {
                                                                 fallbackFileName: `${key || 'plugin'}.cipx`,

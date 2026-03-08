@@ -351,7 +351,8 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
         if (plugin.LocalDownloadChunkManifest) {
             downloadCipxByManifest(plugin.LocalDownloadChunkManifest, { fallbackFileName: `${Manifest.Id}.cipx` })
                 .then(res => setChecksumInfo(res))
-                .catch(() => {
+                .catch((err) => {
+                    console.error('Failed to download from manifest:', err);
                     if (resolvedDownloadUrl) {
                         downloadFileUrl(resolvedDownloadUrl, { fallbackFileName: `${Manifest.Id}.cipx` })
                             .then(res => setChecksumInfo(res))

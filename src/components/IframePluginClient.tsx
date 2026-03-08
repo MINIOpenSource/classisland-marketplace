@@ -153,7 +153,8 @@ export function IframePluginClient({ plugin }: { plugin: PluginData }) {
                         setDownloadProgress(0);
                     }
                 }
-            }).then(res => setChecksumInfo(res)).catch(() => {
+            }).then(res => setChecksumInfo(res)).catch((err) => {
+                console.error('Failed to download from manifest:', err);
                 if (resolvedDownloadUrl) {
                     setDownloadProgress(0);
                     downloadFileUrl(resolvedDownloadUrl, {
