@@ -28,7 +28,8 @@ const useStyles = makeStyles({
         boxSizing: 'border-box',
         overflow: 'hidden',
         width: '100%',
-        height: '100%',
+        minHeight: '100vh',
+        height: '100vh',
         color: 'inherit',
         transition: 'box-shadow 220ms ease, border-color 220ms ease',
         ':hover': {
@@ -41,7 +42,6 @@ const useStyles = makeStyles({
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '16px',
-        flex: 1,
     },
     leftCol: {
         display: 'flex',

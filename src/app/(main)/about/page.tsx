@@ -37,19 +37,59 @@ const useStyles = makeStyles({
     backButton: {
         alignSelf: 'flex-start',
     },
-    versionItem: {
+    timelineItem: {
+        display: 'flex',
+        gap: '16px',
+        position: 'relative',
+        paddingBottom: '24px',
+        '&:last-child': {
+            paddingBottom: '0',
+        },
+        marginTop: '8px'
+    },
+    timelineLine: {
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        gap: '4px',
+        alignItems: 'center',
+        width: '24px',
+        flexShrink: 0,
+    },
+    timelineDot: {
+        width: '12px',
+        height: '12px',
+        borderRadius: '50%',
+        backgroundColor: 'var(--colorNeutralStroke1)',
+        border: '2px solid var(--colorNeutralBackground1)',
+        boxShadow: '0 0 0 2px var(--colorNeutralStroke2)',
+        zIndex: 1,
+        flexShrink: 0,
+        marginTop: '6px',
+    },
+    timelineConnector: {
+        width: '2px',
+        flexGrow: 1,
+        backgroundColor: 'var(--colorNeutralStroke2)',
+        marginTop: '4px',
+    },
+    versionContent: {
+        flex: 1,
+        minWidth: 0,
+        backgroundColor: 'var(--colorNeutralBackground2)',
         padding: '12px',
         borderRadius: '8px',
-        backgroundColor: 'var(--colorNeutralBackground2)',
-        marginTop: '8px'
+        border: '1px solid var(--colorNeutralStroke3)',
+    },
+    versionHeader: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        flexWrap: 'wrap',
     },
     versionLinks: {
         display: 'flex',
         gap: '12px',
-        marginTop: '4px',
+        marginTop: '8px',
         flexWrap: 'wrap'
     }
 });
@@ -84,15 +124,7 @@ export default function AboutPage() {
         }
     } catch { }
 
-    const getPreviewUrl = (hash: string, shortHash: string) => {
-        if (isCFPages && cfPagesUrl) {
-            try {
-                const url = new URL(cfPagesUrl);
-                return `https://${shortHash}.${url.hostname}`;
-            } catch { }
-        }
-        return null;
-    };
+
 
     return (
         <div className={styles.container}>
@@ -143,36 +175,35 @@ export default function AboutPage() {
                     <Text size={300} style={{ color: 'var(--colorNeutralForeground3)' }}>
                         展示最近的网络部署版本记录。
                     </Text>
-                    {commitHistory.map(commit => {
-                        const previewUrl = getPreviewUrl(commit.hash, commit.shortHash);
+                    {commitHistory.map((commit, idx) => {
                         return (
-                            <div key={commit.hash} className={styles.versionItem}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <BranchRegular />
-                                    <Text weight="semibold">{commit.shortHash}</Text>
-                                    <Text size={200} style={{ color: 'var(--colorNeutralForeground3)' }}>
-                                        {commit.date}
-                                    </Text>
-                                    <Text size={200} style={{ color: 'var(--colorNeutralForeground4)' }}>
-                                        {commit.author}
-                                    </Text>
+                            <div key={commit.hash} className={styles.timelineItem}>
+                                <div className={styles.timelineLine}>
+                                    <div className={styles.timelineDot} />
+                                    {idx < commitHistory.length - 1 && (
+                                        <div className={styles.timelineConnector} />
+                                    )}
                                 </div>
-                                <Text size={300}>{commit.message}</Text>
-                                <div className={styles.versionLinks}>
-                                    <Link
-                                        href={`https://github.com/MINIOpenSource/classisland-marketplace/commit/${commit.hash}`}
-                                        target="_blank"
-                                    >
-                                        GitHub Commit
-                                    </Link>
-                                    {previewUrl && (
+                                <div className={styles.versionContent}>
+                                    <div className={styles.versionHeader}>
+                                        <BranchRegular />
+                                        <Text weight="semibold" style={{ fontFamily: 'ui-monospace, monospace' }}>{commit.shortHash}</Text>
+                                        <Text size={200} style={{ color: 'var(--colorNeutralForeground3)' }}>
+                                            {commit.date}
+                                        </Text>
+                                        <Text size={200} style={{ color: 'var(--colorNeutralForeground4)' }}>
+                                            {commit.author}
+                                        </Text>
+                                    </div>
+                                    <Text size={300} style={{ display: 'block', marginTop: '4px' }}>{commit.message}</Text>
+                                    <div className={styles.versionLinks}>
                                         <Link
-                                            href={previewUrl}
+                                            href={`https://github.com/MINIOpenSource/classisland-marketplace/commit/${commit.hash}`}
                                             target="_blank"
                                         >
-                                            {isCFPages ? 'CF Pages 部署' : 'Vercel 部署'}
+                                            GitHub Commit记录
                                         </Link>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
                         );

@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 import {
     makeStyles,
     tokens,
@@ -13,7 +15,7 @@ import {
     Avatar,
     Badge
 } from '@fluentui/react-components';
-import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular, ArrowLeftRegular } from '@fluentui/react-icons';
+import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular, ArrowLeftRegular, ChevronRightRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import { useLocale } from '@/components/LanguageProvider';
 import { useTheme } from '@/components/ThemeProvider';
@@ -92,11 +94,38 @@ export function Header() {
     const t = useTranslations('Index');
     const { setLocale } = useLocale();
     const { isDark, toggleTheme } = useTheme();
-    const { showBack } = useTopBar();
+    const { showBack, pluginInfo } = useTopBar();
     const router = useRouter();
+    const [isScrolled, setIsScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const handleDoubleClick = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     return (
-        <header className={styles.header}>
+        <header
+            onDoubleClick={handleDoubleClick}
+            className={styles.header}
+            style={{
+                backgroundColor: 'color-mix(in srgb, var(--colorNeutralBackground1) 75%, transparent)',
+                top: isScrolled ? '12px' : '0',
+                borderRadius: isScrolled ? '16px' : '0',
+                margin: isScrolled ? '0 24px' : '0',
+                width: isScrolled ? 'calc(100% - 48px)' : '100%',
+                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                border: isScrolled ? '1px solid var(--colorNeutralStroke1)' : '1px solid transparent',
+                borderBottom: isScrolled ? '1px solid var(--colorNeutralStroke1)' : '1px solid var(--colorNeutralStroke2)'
+            }}
+        >
             <div className={styles.titleWrap}>
                 <div style={{
                     overflow: 'hidden',
@@ -116,16 +145,58 @@ export function Header() {
                         title={t('back') || 'Back'}
                     />
                 </div>
+
                 <Avatar className={styles.logoAvatar} image={{ src: '/favicon.ico' }} name="ClassIsland" shape="square" size={32} />
                 <Title1 as="h1" className={styles.titleText}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        <span className={styles.desktopText}>ClassIsland </span>
-                        Marketplace
+                    <span style={{
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        maxWidth: pluginInfo ? "0px" : "150px",
+                        opacity: pluginInfo ? 0 : 1,
+                        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                        marginRight: pluginInfo ? "0" : "4px"
+                    }}>
+                        <span className={styles.desktopText} style={{ marginRight: '4px' }}>ClassIsland</span>
                     </span>
+                    <span style={{ marginRight: '8px' }}>Marketplace</span>
+
+                    <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        maxWidth: pluginInfo ? "300px" : "0px",
+                        opacity: pluginInfo ? 1 : 0,
+                        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap'
+                    }}>
+                        <ChevronRightRegular fontSize={20} style={{ color: tokens.colorNeutralForeground3, marginRight: '8px', flexShrink: 0 }} />
+                        {pluginInfo && (
+                            <>
+                                <Avatar className={styles.logoAvatar} image={pluginInfo.iconSrc ? { src: pluginInfo.iconSrc } : undefined} name={pluginInfo.name} shape="square" size={24} style={{ marginRight: '8px', flexShrink: 0 }} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {pluginInfo.name}
+                                </span>
+                            </>
+                        )}
+                    </span>
+
                     <Badge appearance="tint" shape="rounded" color="brand" style={{ fontSize: '12px', paddingTop: '2px', flexShrink: 0 }}>{t('preview')}</Badge>
                 </Title1>
             </div>
             <div className={styles.actions}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    maxWidth: pluginInfo ? '300px' : '0px',
+                    opacity: pluginInfo ? 1 : 0,
+                    overflow: 'hidden',
+                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}>
+                    {pluginInfo && pluginInfo.actions}
+                </div>
+
                 <Button
                     icon={isDark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
                     appearance="subtle"

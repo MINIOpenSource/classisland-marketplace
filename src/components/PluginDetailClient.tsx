@@ -243,7 +243,12 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     const styles = useStyles();
     const t = useTranslations('Index');
     const router = useRouter();
-    const { setShowBack } = useTopBar();
+    const { setShowBack, setPluginInfo } = useTopBar();
+
+    const { ref: headerCardRef, inView: headerCardInView } = useInView({
+        initialInView: true,
+        threshold: 0,
+    });
 
     const { ref: backBtnRef, inView: backBtnInView } = useInView({
         initialInView: true,
@@ -368,7 +373,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     const svgCardUrl = `${origin}/svg/plugin/${Manifest.Id}`;
     const iframeCardUrl = `${origin}/iframe/plugin/${Manifest.Id}`;
     const svgEmbedCode = `<img src="${svgCardUrl}" alt="${escapedEmbedAlt}" width="400" height="100" style="border-radius: 8px; max-width: 100%; height: auto;" />`;
-    const iframeEmbedCode = `<iframe src="${iframeCardUrl}" width="400" height="180" frameborder="0" style="border-radius: 8px; overflow: hidden; max-width: 100%;"></iframe>`;
+    const iframeEmbedCode = `<iframe src="${iframeCardUrl}" width="400" height="150" frameborder="0" style="border-radius: 8px; overflow: hidden; max-width: 100%;"></iframe>`;
     const embedCode = embedType === 'svg' ? svgEmbedCode : iframeEmbedCode;
 
     const handleCopyEmbed = () => {
@@ -380,6 +385,76 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
 
     const sizeStr = formatBytes(FileSize);
     const transitionId = Manifest.Id.replace(/[^a-zA-Z0-9]/g, '-');
+
+    useEffect(() => {
+        const checkMobile = () => window.matchMedia('(max-width: 768px)').matches;
+        let isMobile = checkMobile();
+        const handleResize = () => {
+            isMobile = checkMobile();
+            updatePluginInfo();
+        };
+        window.addEventListener('resize', handleResize);
+
+        const updatePluginInfo = () => {
+            if (!headerCardInView && !isMobile) {
+                setPluginInfo({
+                    name: Manifest.Name,
+                    iconSrc,
+                    actions: (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <Button
+                                appearance={isWin ? "primary" : "secondary"}
+                                disabled={!isWin}
+                                icon={<OpenRegular />}
+                                onClick={handleInstall}
+                                title={!isWin ? t('requiresWindows') : t('install')}
+                                className={styles.actionButton}
+                                style={{ minWidth: '38px', padding: 0 }}
+                            />
+                            <Button
+                                appearance="outline"
+                                icon={<ArrowDownloadRegular />}
+                                onClick={handleDownload}
+                                title={t('download')}
+                                className={styles.actionButton}
+                                style={{ minWidth: '38px', padding: 0 }}
+                            />
+                            {Manifest.Url && (
+                                <Button
+                                    appearance="outline"
+                                    icon={<GitHubIcon />}
+                                    onClick={handleOpenGitHub}
+                                    title={t('openInGitHub') || 'GitHub'}
+                                    className={styles.actionButton}
+                                    style={{ minWidth: '38px', padding: 0 }}
+                                />
+                            )}
+                            <Button
+                                appearance="outline"
+                                icon={<CodeRegular />}
+                                onClick={() => {
+                                    setOrigin(window.location.origin);
+                                    setEmbedDialogOpen(true);
+                                }}
+                                title={t('embedCard') || 'Embed Card'}
+                                className={styles.actionButton}
+                                style={{ minWidth: '38px', padding: 0 }}
+                            />
+                        </div>
+                    )
+                });
+            } else {
+                setPluginInfo(null);
+            }
+        };
+
+        updatePluginInfo();
+        return () => window.removeEventListener('resize', handleResize);
+    }, [headerCardInView, Manifest.Name, Manifest.Url, iconSrc, isWin, t, styles.actionButton]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        return () => setPluginInfo(null);
+    }, [setPluginInfo]);
 
     return (
         <div className={styles.container}>
@@ -395,7 +470,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                 </Button>
             </div>
 
-            <div className={styles.headerCard} style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}>
+            <div ref={headerCardRef} className={styles.headerCard} style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}>
                 <div className={styles.headerInfo}>
                     <div style={{ viewTransitionName: `avatar-img-${transitionId}`, gridArea: 'avatar' } as React.CSSProperties}>
                         <Avatar
@@ -591,9 +666,9 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                     <iframe
                                         src={`/iframe/plugin/${Manifest.Id}`}
                                         width="100%"
-                                        height="180"
+                                        height="150"
                                         frameBorder="0"
-                                        style={{ borderRadius: '8px', overflow: 'hidden' }}
+                                        style={{ borderRadius: '8px', overflow: 'hidden', display: 'block' }}
                                     />
                                 )}
                             </div>
