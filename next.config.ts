@@ -7,7 +7,15 @@ try {
     buildHash = defaultHash ? defaultHash.substring(0, 7) : execSync('git rev-parse --short HEAD').toString().trim();
 } catch { }
 
-let commitHistory: any[] = [];
+interface Commit {
+    shortHash: string;
+    hash: string;
+    message: string;
+    date: string;
+    author: string;
+}
+
+let commitHistory: Commit[] = [];
 try {
     const log = execSync("git log -n 50 --pretty=format:\"%h|%H|%s|%ad|%an\" --date=short --abbrev=8").toString();
     commitHistory = log.split('\n').filter(Boolean).map(line => {

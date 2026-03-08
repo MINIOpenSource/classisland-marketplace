@@ -51,9 +51,15 @@ export function Footer() {
 
     const [timeFormat, setTimeFormat] = useState<'locale' | 'relative'>('locale');
     const [mounted, setMounted] = useState(false);
+    const [now, setNow] = useState(0);
 
     useEffect(() => {
+        // eslint-disable-next-line
         setMounted(true);
+        // eslint-disable-next-line
+        setNow(Date.now());
+        const interval = setInterval(() => setNow(Date.now()), 60000);
+        return () => clearInterval(interval);
     }, []);
 
     let displayTime = buildTime;
@@ -63,7 +69,7 @@ export function Footer() {
             if (timeFormat === 'locale') {
                 displayTime = date.toLocaleString();
             } else {
-                const diff = (Date.now() - date.getTime()) / 1000;
+                const diff = (now - date.getTime()) / 1000;
                 if (diff < 60) displayTime = '刚刚';
                 else if (diff < 3600) displayTime = `${Math.floor(diff / 60)} 分钟前`;
                 else if (diff < 86400) displayTime = `${Math.floor(diff / 3600)} 小时前`;

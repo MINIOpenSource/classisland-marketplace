@@ -242,7 +242,7 @@ const useStyles = makeStyles({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 1)',
         zIndex: 800,
         opacity: 0,
         transition: 'opacity 0.25s ease',
@@ -275,6 +275,7 @@ export interface PluginData {
     StarsCount: number;
     FileSize?: number;
     CachedIconFile?: string;
+    CachedIconFileMin?: string;
     Manifest: {
         Id: string;
         Name: string;
@@ -332,13 +333,15 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
         }
     }, [inView, resolvedDownloadUrl, fileSizeStr]);
 
-    const { Manifest, DownloadCount, StarsCount, RealIconPath, CachedIconFile } = plugin;
+    const { Manifest, DownloadCount, StarsCount, RealIconPath, CachedIconFile, CachedIconFileMin } = plugin;
 
-    const iconSrc = CachedIconFile
-        ? `/icons/${CachedIconFile}`
-        : RealIconPath
-            ? RealIconPath
-            : undefined;
+    const iconSrc = CachedIconFileMin
+        ? `/icons/${CachedIconFileMin}`
+        : CachedIconFile
+            ? `/icons/${CachedIconFile}`
+            : RealIconPath
+                ? RealIconPath
+                : undefined;
 
     const handleInstallClick = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -476,6 +479,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                 )}
                 style={baseHeight ? { height: `${baseHeight}px` } : undefined}
                 onMouseEnter={() => {
+                    if (window.matchMedia("(hover: none)").matches) return; // Prevent hover logic breaking touch UX in some browsers
                     router.prefetch(`/plugin/${Manifest.Id}`);
                     if (iconSrc) {
                         const img = new Image();
@@ -504,6 +508,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                     }
                 }}
                 onMouseLeave={() => {
+                    if (window.matchMedia("(hover: none)").matches) return;
                     if (!isTouchExpanded) setIsHovering(false);
                 }}
             >
@@ -521,8 +526,12 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                     <Card
                         className={mergeClasses(styles.card, isTouchExpanded && styles.cardTouchExpanded)}
                         ref={cardRef}
-                        onMouseMove={handleMouseMove}
+                        onMouseMove={(e) => {
+                            if (window.matchMedia("(hover: none)").matches) return;
+                            handleMouseMove(e);
+                        }}
                         onMouseLeave={() => {
+                            if (window.matchMedia("(hover: none)").matches) return;
                             if (!isTouchExpanded) setIsHovering(false);
                         }}
                         style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}

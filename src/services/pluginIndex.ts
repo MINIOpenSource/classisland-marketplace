@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import https from 'https';
 import http from 'http';
+import sharp from 'sharp';
 
 const CACHE_DIR = path.join(process.cwd(), '.plugin-cache');
 const CACHE_JSON = path.join(CACHE_DIR, 'index.json');
@@ -15,13 +16,14 @@ const README_IMAGE_DIR = path.join(process.cwd(), 'public', 'readme-images');
 const README_DIR = path.join(process.cwd(), 'public', 'readmes');
 const VERSION_DESC_DIR = path.join(process.cwd(), 'public', 'version-descriptions');
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-const CIPX_CHUNK_SIZE = 1024 * 1024; // 1MB
+const CIPX_CHUNK_SIZE = 384 * 1024; // 384KB
 
 interface CipxChunkManifest {
     fileName: string;
     totalSize: number;
     chunkSize: number;
     chunks: string[];
+    md5?: string;
 }
 
 function ensureDir(dir: string) {
@@ -77,6 +79,7 @@ function splitFileToChunks(
         totalSize: buf.length,
         chunkSize: CIPX_CHUNK_SIZE,
         chunks,
+        md5: crypto.createHash('md5').update(buf).digest('hex'),
     };
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
     return `/cipx-chunks/${outputSubDir}/manifest.json`;
@@ -136,9 +139,9 @@ async function downloadBuffer(urlStr: string): Promise<Buffer> {
 }
 
 /**
- * Download and cache a plugin icon. Returns the local filename (pluginId + ext).
+ * Download and cache a plugin icon. Returns the local filename (pluginId + ext) and a 64x64 compressed version.
  */
-async function cacheIcon(pluginId: string, iconUrl: string): Promise<string | null> {
+async function cacheIcon(pluginId: string, iconUrl: string): Promise<{ filename: string, minFilename: string } | null> {
     ensureDir(ICON_DIR);
 
     // Determine file extension from URL
@@ -147,19 +150,34 @@ async function cacheIcon(pluginId: string, iconUrl: string): Promise<string | nu
     // Sanitise pluginId for use as filename
     const safeId = toSafePluginId(pluginId);
     const filename = `${safeId}${ext}`;
+    const minFilename = `${safeId}.min${ext}`;
     const filePath = path.join(ICON_DIR, filename);
+    const minFilePath = path.join(ICON_DIR, minFilename);
 
     // If already cached, skip download
-    if (fs.existsSync(filePath)) {
-        return filename;
+    if (fs.existsSync(filePath) && fs.existsSync(minFilePath)) {
+        return { filename, minFilename };
     }
 
     try {
         const res = await fetchWithRetry(iconUrl);
         if (!res.ok) return null;
         const buf = Buffer.from(await res.arrayBuffer());
+
+        // Save original
         fs.writeFileSync(filePath, buf);
-        return filename;
+
+        // Save compressed 64x64 version
+        try {
+            const minBuf = await sharp(buf).resize(64, 64).toBuffer();
+            fs.writeFileSync(minFilePath, minBuf);
+        } catch (e) {
+            console.warn(`Failed to generate 64x64 icon for ${pluginId}:`, e);
+            // Fallback to original if compression fails
+            fs.writeFileSync(minFilePath, buf);
+        }
+
+        return { filename, minFilename };
     } catch (e) {
         console.warn(`Failed to cache icon for ${pluginId}:`, e);
         return null;
@@ -421,9 +439,10 @@ export async function getPluginIndex() {
             // Cache icon
             if (plugin.RealIconPath && plugin.Manifest?.Id) {
                 cachePromises.push(
-                    cacheIcon(plugin.Manifest.Id, plugin.RealIconPath).then(cachedFile => {
-                        if (cachedFile) {
-                            plugin.CachedIconFile = cachedFile;
+                    cacheIcon(plugin.Manifest.Id, plugin.RealIconPath).then(cached => {
+                        if (cached) {
+                            plugin.CachedIconFile = cached.filename;
+                            plugin.CachedIconFileMin = cached.minFilename;
                         }
                     })
                 );

@@ -15,7 +15,7 @@ import {
     Avatar,
     Badge
 } from '@fluentui/react-components';
-import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular, ArrowLeftRegular, ChevronRightRegular } from '@fluentui/react-icons';
+import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular, ArrowLeftRegular, ChevronRightRegular, ArrowDownloadRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import { useLocale } from '@/components/LanguageProvider';
 import { useTheme } from '@/components/ThemeProvider';
@@ -24,7 +24,7 @@ import { useRouter } from 'next/navigation';
 
 const useStyles = makeStyles({
     header: {
-        height: '72px',
+        height: '80px',
         padding: '0 32px',
         display: 'flex',
         alignItems: 'center',
@@ -72,6 +72,17 @@ const useStyles = makeStyles({
         flexShrink: 0
     },
     actionButton: {
+        borderRadius: tokens.borderRadiusLarge,
+        transition: 'transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease',
+        ':hover': {
+            transform: 'translateY(-1px)',
+            boxShadow: tokens.shadow8,
+        },
+        ':active': {
+            transform: 'translateY(0)',
+        },
+    },
+    actionButtonPrimary: {
         borderRadius: tokens.borderRadiusLarge,
         transition: 'transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease',
         ':hover': {
@@ -157,7 +168,7 @@ export function Header() {
                         transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                         marginRight: pluginInfo ? "0" : "4px"
                     }}>
-                        <span className={styles.desktopText} style={{ marginRight: '4px' }}>ClassIsland</span>
+                        <span className={styles.desktopText}>ClassIsland</span>
                     </span>
                     <span style={{ marginRight: '8px' }}>Marketplace</span>
 
@@ -197,6 +208,12 @@ export function Header() {
                     {pluginInfo && pluginInfo.actions}
                 </div>
 
+                <Button
+                    icon={<ArrowDownloadRegular />}
+                    appearance="subtle"
+                    title={t('downloads') || 'Downloads'}
+                    className={styles.actionButton}
+                />
                 <Button
                     icon={isDark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
                     appearance="subtle"

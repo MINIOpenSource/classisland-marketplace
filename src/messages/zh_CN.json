@@ -51,7 +51,12 @@
         "showLessVersions": "收起较早版本",
         "downloadComplete": "下载完成",
         "checksumDesc": "以下是下载文件的 MD5 校验和：",
-        "downloadChecksum": "下载 .checksum 文件"
+        "checksumLocalDesc": "本地文件 MD5 校验和：",
+        "checksumRemoteDesc": "预期的原始 MD5 校验和：",
+        "checksumMatch": "校验和匹配！文件完整。",
+        "checksumMismatch": "校验和不匹配！文件可能已损坏。",
+        "downloadChecksum": "下载 .checksum 文件",
+        "lightModeConfirm": "确定要切换到浅色模式吗？可能会有些刺眼哦！"
     },
     "NotFound": {
         "code": "404",

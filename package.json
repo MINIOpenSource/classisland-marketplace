@@ -1,6 +1,6 @@
 {
   "name": "classisland-marketplace",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -25,6 +25,7 @@
     "remark-gfm": "^4.0.1",
     "satori": "^0.25.0",
     "satori-html": "^0.3.2",
+    "sharp": "^0.34.5",
     "spark-md5": "^3.0.2"
   },
   "devDependencies": {

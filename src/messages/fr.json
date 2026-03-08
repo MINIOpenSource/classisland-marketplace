@@ -51,7 +51,8 @@
         "showLessVersions": "Afficher moins",
         "downloadComplete": "Téléchargement terminé",
         "checksumDesc": "Voici la somme de contrôle MD5 du fichier téléchargé :",
-        "downloadChecksum": "Télécharger .checksum"
+        "downloadChecksum": "Télécharger .checksum",
+        "lightModeConfirm": "Êtes-vous sûr de vouloir passer en mode clair ? Cela pourrait être trop lumineux !"
     },
     "NotFound": {
         "code": "404",

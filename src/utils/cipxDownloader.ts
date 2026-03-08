@@ -21,6 +21,7 @@ export interface CipxChunkManifest {
     totalSize: number;
     chunkSize: number;
     chunks: string[];
+    md5?: string;
 }
 
 interface DownloadProgress {
@@ -46,7 +47,7 @@ function triggerBrowserDownload(blob: Blob, fileName: string) {
     URL.revokeObjectURL(objectUrl);
 }
 
-export async function downloadCipxByManifest(manifestUrl: string, options?: DownloadOptions): Promise<{ checksum: string, fileName: string }> {
+export async function downloadCipxByManifest(manifestUrl: string, options?: DownloadOptions): Promise<{ checksum: string, fileName: string, expectedChecksum?: string }> {
     const manifestRes = await fetch(manifestUrl, { cache: 'no-store' });
     if (!manifestRes.ok) {
         throw new Error(`Failed to fetch chunk manifest: HTTP ${manifestRes.status}`);
@@ -104,7 +105,7 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
     const fileName = manifest.fileName || options?.fallbackFileName || 'plugin.cipx';
     triggerBrowserDownload(blob, fileName);
 
-    return { checksum, fileName };
+    return { checksum, fileName, expectedChecksum: manifest.md5 };
 }
 
 export async function downloadFileUrl(downloadUrl: string, options?: DownloadOptions): Promise<{ checksum: string, fileName: string }> {

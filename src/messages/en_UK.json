@@ -51,7 +51,8 @@
         "showLessVersions": "Show less",
         "downloadComplete": "Download Complete",
         "checksumDesc": "Here is the MD5 checksum of the downloaded file:",
-        "downloadChecksum": "Download .checksum"
+        "downloadChecksum": "Download .checksum",
+        "lightModeConfirm": "Are you sure you want to switch to light mode? It might be too bright!"
     },
     "NotFound": {
         "code": "404",

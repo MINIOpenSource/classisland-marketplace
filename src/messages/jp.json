@@ -51,7 +51,8 @@
         "showLessVersions": "一部を隠す",
         "downloadComplete": "ダウンロード完了",
         "checksumDesc": "以下はダウンロードしたファイルの MD5 チェックサムです：",
-        "downloadChecksum": ".checksumをダウンロード"
+        "downloadChecksum": ".checksumをダウンロード",
+        "lightModeConfirm": "本当にライトモードに切り替えますか？眩しすぎるかもしれません！"
     },
     "NotFound": {
         "code": "404",

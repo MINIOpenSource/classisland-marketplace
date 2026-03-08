@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl';
 
 export interface ChecksumInfo {
     checksum: string;
+    expectedChecksum?: string;
     fileName: string;
 }
 
@@ -27,16 +28,36 @@ export function ChecksumDialog({
 }) {
     const t = useTranslations('Index');
 
+    const match = info?.expectedChecksum ? info.checksum.toLowerCase() === info.expectedChecksum.toLowerCase() : undefined;
+
     return (
         <Dialog open={!!info} onOpenChange={(_, data) => !data.open && onClose()}>
             <DialogSurface>
                 <DialogBody>
                     <DialogTitle>{t('downloadComplete') || 'Download Complete'}</DialogTitle>
                     <DialogContent>
-                        <Text>{t('checksumDesc') || 'Here is the MD5 checksum of the downloaded file:'}</Text>
-                        <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium, marginTop: '12px', marginBottom: '12px' }}>
-                            {info?.checksum}
-                        </div>
+                        {info?.expectedChecksum ? (
+                            <>
+                                <Text>{t('checksumLocalDesc') || 'Local File MD5 Checksum:'}</Text>
+                                <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium, marginTop: '8px', marginBottom: '12px' }}>
+                                    {info.checksum}
+                                </div>
+                                <Text>{t('checksumRemoteDesc') || 'Expected Original MD5 Checksum:'}</Text>
+                                <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium, marginTop: '8px', marginBottom: '12px' }}>
+                                    {info.expectedChecksum}
+                                </div>
+                                <Text style={{ color: match ? tokens.colorPaletteGreenForeground1 : tokens.colorPaletteRedForeground1, fontWeight: 'bold' }}>
+                                    {match ? (t('checksumMatch') || 'Checksums Match! File is intact.') : (t('checksumMismatch') || 'Checksum Mismatch! File might be corrupted.')}
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text>{t('checksumDesc') || 'Here is the MD5 checksum of the downloaded file:'}</Text>
+                                <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium, marginTop: '12px', marginBottom: '12px' }}>
+                                    {info?.checksum}
+                                </div>
+                            </>
+                        )}
                     </DialogContent>
                     <DialogActions>
                         <Button appearance="secondary" onClick={onClose}>{t('close') || 'Close'}</Button>

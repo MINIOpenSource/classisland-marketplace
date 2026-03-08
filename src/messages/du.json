@@ -51,7 +51,8 @@
         "showLessVersions": "Minder weergeven",
         "downloadComplete": "Download voltooid",
         "checksumDesc": "Hier is de MD5-controlesom van het gedownloade bestand:",
-        "downloadChecksum": "Download .checksum"
+        "downloadChecksum": "Download .checksum",
+        "lightModeConfirm": "Weet je zeker dat je wilt overschakelen naar de lichte modus? Het kan te fel zijn!"
     },
     "NotFound": {
         "code": "404",

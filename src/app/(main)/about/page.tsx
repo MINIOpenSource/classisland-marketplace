@@ -112,10 +112,7 @@ export default function AboutPage() {
         return () => setShowBack(false);
     }, [setShowBack]);
 
-    const isCFPages = process.env.CF_PAGES === '1' || process.env.CF_PAGES === 'true';
-    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
-    const cfPagesUrl = process.env.CF_PAGES_URL || '';
-
+    // ... removed unused variables ...
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let commitHistory: any[] = [];
     try {
