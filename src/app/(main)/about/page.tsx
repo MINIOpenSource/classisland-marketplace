@@ -8,6 +8,7 @@ import { useInView } from 'react-intersection-observer';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import packageJson from '../../../../package.json';
+import commitsData from '@/data/commits.json';
 
 const useStyles = makeStyles({
     container: {
@@ -112,8 +113,8 @@ export default function AboutPage() {
     const { setShowBack } = useTopBar();
     const t = useTranslations('Index');
 
-    const [commits, setCommits] = useState<GitHubCommit[] | null>(null);
-    const [commitsError, setCommitsError] = useState(false);
+    const commits: GitHubCommit[] = commitsData as GitHubCommit[];
+    const commitsError = !commits || commits.length === 0;
 
     const { ref: backBtnRef, inView: backBtnInView } = useInView({
         initialInView: true,
@@ -128,21 +129,7 @@ export default function AboutPage() {
         return () => setShowBack(false);
     }, [setShowBack]);
 
-    useEffect(() => {
-        let isMounted = true;
-        fetch('https://api.github.com/repos/MINIOpenSource/classisland-marketplace/commits?per_page=10')
-            .then(res => {
-                if (!res.ok) throw new Error('API Error');
-                return res.json();
-            })
-            .then(data => {
-                if (isMounted) setCommits(data);
-            })
-            .catch(() => {
-                if (isMounted) setCommitsError(true);
-            });
-        return () => { isMounted = false; };
-    }, []);
+
 
     return (
         <div className={styles.container}>
