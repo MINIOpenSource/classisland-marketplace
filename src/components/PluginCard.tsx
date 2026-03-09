@@ -298,7 +298,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
         const timer = setTimeout(() => setIsWin(/Win/i.test(navigator.userAgent)), 0);
         return () => clearTimeout(timer);
     }, []);
-    const [fileSizeStr, setFileSizeStr] = useState<string | null>(plugin.FileSize ? formatBytes(plugin.FileSize) : null);
+    const fileSizeStr = plugin.FileSize ? formatBytes(plugin.FileSize) : null;
     const [isVisible, setIsVisible] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -318,20 +318,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
         return () => { if (delayTimer.current) clearTimeout(delayTimer.current); };
     }, [inView, index]);
 
-    useEffect(() => {
-        if (inView && resolvedDownloadUrl && !fileSizeStr) {
-            fetch(resolvedDownloadUrl, { method: 'HEAD' })
-                .then(res => {
-                    if (res.ok) {
-                        const len = res.headers.get('content-length');
-                        if (len) {
-                            setFileSizeStr(formatBytes(parseInt(len, 10)));
-                        }
-                    }
-                })
-                .catch(() => { });
-        }
-    }, [inView, resolvedDownloadUrl, fileSizeStr]);
+
 
     const { Manifest, DownloadCount, StarsCount, RealIconPath, CachedIconFile, CachedIconFileMin } = plugin;
 

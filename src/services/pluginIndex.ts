@@ -422,57 +422,61 @@ export async function getPluginIndex() {
     // 4. Resolve {root} globally
     const root = data.DownloadMirrors?.github || 'https://github.com';
     if (data.Plugins && Array.isArray(data.Plugins)) {
-        const cachePromises: Promise<void>[] = [];
+        const CHUNK_SIZE = 5;
+        for (let i = 0; i < data.Plugins.length; i += CHUNK_SIZE) {
+            const chunk = data.Plugins.slice(i, i + CHUNK_SIZE);
+            const cachePromises: Promise<void>[] = [];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data.Plugins.forEach((plugin: any) => {
-            if (plugin.RealIconPath) {
-                plugin.RealIconPath = plugin.RealIconPath.replace('{root}', root);
-            }
-            if (plugin.Manifest?.Readme) {
-                plugin.Manifest.Readme = plugin.Manifest.Readme.replace('{root}', root);
-            }
-            if (plugin.DownloadUrl) {
-                plugin.DownloadUrl = plugin.DownloadUrl.replace('{root}', root);
-            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            chunk.forEach((plugin: any) => {
+                if (plugin.RealIconPath) {
+                    plugin.RealIconPath = plugin.RealIconPath.replace('{root}', root);
+                }
+                if (plugin.Manifest?.Readme) {
+                    plugin.Manifest.Readme = plugin.Manifest.Readme.replace('{root}', root);
+                }
+                if (plugin.DownloadUrl) {
+                    plugin.DownloadUrl = plugin.DownloadUrl.replace('{root}', root);
+                }
 
-            // Cache icon
-            if (plugin.RealIconPath && plugin.Manifest?.Id) {
-                cachePromises.push(
-                    cacheIcon(plugin.Manifest.Id, plugin.RealIconPath).then(cached => {
-                        if (cached) {
-                            plugin.CachedIconFile = cached.filename;
-                            plugin.CachedIconFileMin = cached.minFilename;
-                        }
-                    })
-                );
-            }
+                // Cache icon
+                if (plugin.RealIconPath && plugin.Manifest?.Id) {
+                    cachePromises.push(
+                        cacheIcon(plugin.Manifest.Id, plugin.RealIconPath).then(cached => {
+                            if (cached) {
+                                plugin.CachedIconFile = cached.filename;
+                                plugin.CachedIconFileMin = cached.minFilename;
+                            }
+                        })
+                    );
+                }
 
-            // Cache README
-            if (plugin.Manifest?.Readme && plugin.Manifest?.Id) {
-                cachePromises.push(
-                    cacheReadme(plugin.Manifest.Id, plugin.Manifest.Readme).then((filename) => {
-                        if (filename) {
-                            plugin.LocalReadmeUrl = `/readmes/${filename}`;
-                        }
-                    })
-                );
-            }
+                // Cache README
+                if (plugin.Manifest?.Readme && plugin.Manifest?.Id) {
+                    cachePromises.push(
+                        cacheReadme(plugin.Manifest.Id, plugin.Manifest.Readme).then((filename) => {
+                            if (filename) {
+                                plugin.LocalReadmeUrl = `/readmes/${filename}`;
+                            }
+                        })
+                    );
+                }
 
-            // Cache plugin package (.cipx) for static export
-            if (plugin.DownloadUrl && plugin.Manifest?.Id) {
-                cachePromises.push(
-                    cacheCipx(plugin.Manifest.Id, plugin.DownloadUrl).then(({ chunkManifestUrl }) => {
-                        if (chunkManifestUrl) {
-                            plugin.LocalDownloadChunkManifest = chunkManifestUrl;
-                        }
-                    })
-                );
-            }
-        });
+                // Cache plugin package (.cipx) for static export
+                if (plugin.DownloadUrl && plugin.Manifest?.Id) {
+                    cachePromises.push(
+                        cacheCipx(plugin.Manifest.Id, plugin.DownloadUrl).then(({ chunkManifestUrl }) => {
+                            if (chunkManifestUrl) {
+                                plugin.LocalDownloadChunkManifest = chunkManifestUrl;
+                            }
+                        })
+                    );
+                }
+            });
 
-        // Download all icons and readmes in parallel
-        await Promise.allSettled(cachePromises);
+            // Download items in parallel, limited to CHUNK_SIZE
+            await Promise.allSettled(cachePromises);
+        }
     }
     // 5. Save unpacked JSON cache (not the zip!)
     ensureDir(CACHE_DIR);

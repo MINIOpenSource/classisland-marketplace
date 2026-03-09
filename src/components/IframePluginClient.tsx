@@ -10,7 +10,7 @@ import {
 import { ArrowDownloadRegular, StarRegular, OpenRegular, ShareRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import { PluginData, formatBytes } from './PluginCard';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
 import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
 
@@ -106,24 +106,9 @@ export function IframePluginClient({ plugin }: { plugin: PluginData }) {
     const { Manifest, DownloadCount, StarsCount, RealIconPath, CachedIconFile, FileSize } = plugin;
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
 
-    const [fileSizeStr, setFileSizeStr] = useState<string | null>(FileSize ? formatBytes(FileSize) : null);
+    const fileSizeStr = FileSize ? formatBytes(FileSize) : null;
     const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
     const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
-
-    useEffect(() => {
-        if (resolvedDownloadUrl && !fileSizeStr) {
-            fetch(resolvedDownloadUrl, { method: 'HEAD' })
-                .then(res => {
-                    if (res.ok) {
-                        const len = res.headers.get('content-length');
-                        if (len) {
-                            setFileSizeStr(formatBytes(parseInt(len, 10)));
-                        }
-                    }
-                })
-                .catch(() => { });
-        }
-    }, [resolvedDownloadUrl, fileSizeStr]);
 
     const iconSrc = CachedIconFile
         ? `/icons/${CachedIconFile}`
