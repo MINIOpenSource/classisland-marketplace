@@ -26,8 +26,7 @@ import { useTopBar } from './TopBarProvider';
 import { useInView } from 'react-intersection-observer';
 import type { VersionEntry } from '@/services/pluginIndex';
 import Image from 'next/image';
-import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
-import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
+import { useDownload } from './DownloadProvider';
 
 function formatBytes(bytes?: number, decimals = 2) {
     if (bytes === undefined || bytes === null || !+bytes) return '';
@@ -272,10 +271,9 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     const [embedCopied, setEmbedCopied] = useState(false);
     const [embedType, setEmbedType] = useState<'svg' | 'iframe'>('svg');
     const [origin, setOrigin] = useState('');
-    const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
     const [confirmLink, setConfirmLink] = useState<string | null>(null);
     const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
-    const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
+    const { addTask } = useDownload();
 
     const handleLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = (e.target as HTMLElement).closest('a');
@@ -308,52 +306,11 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
 
     const handleDownload = () => {
         if (plugin.LocalDownloadChunkManifest) {
-            setDownloadProgress(0);
-            downloadCipxByManifest(plugin.LocalDownloadChunkManifest, {
-                fallbackFileName: `${Manifest.Id}.cipx`,
-                onProgress: ({ completedChunks, totalChunks, loadedBytes, totalBytes }) => {
-                    if (totalBytes > 0) {
-                        setDownloadProgress(Math.round((loadedBytes / totalBytes) * 100));
-                    } else if (totalChunks > 0) {
-                        setDownloadProgress(Math.round((completedChunks / totalChunks) * 100));
-                    } else {
-                        setDownloadProgress(0);
-                    }
-                }
-            }).then(res => setChecksumInfo(res)).catch((err) => {
-                console.error('Failed to download from manifest:', err);
-                if (resolvedDownloadUrl) {
-                    setDownloadProgress(0);
-                    downloadFileUrl(resolvedDownloadUrl, {
-                        fallbackFileName: `${Manifest.Id}.cipx`,
-                        onProgress: ({ loadedBytes, totalBytes }) => {
-                            setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null);
-                        }
-                    }).then(res => setChecksumInfo(res)).catch(() => {
-                        window.location.href = resolvedDownloadUrl;
-                    }).finally(() => {
-                        setDownloadProgress(null);
-                    });
-                } else {
-                    setDownloadProgress(null);
-                }
-            }).finally(() => {
-                if (!resolvedDownloadUrl) setDownloadProgress(null);
-            });
+            addTask(Manifest.Id, Manifest.Name, Manifest.Version, true, plugin.LocalDownloadChunkManifest);
             return;
         }
         if (resolvedDownloadUrl) {
-            setDownloadProgress(0);
-            downloadFileUrl(resolvedDownloadUrl, {
-                fallbackFileName: `${Manifest.Id}.cipx`,
-                onProgress: ({ loadedBytes, totalBytes }) => {
-                    setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null);
-                }
-            }).then(res => setChecksumInfo(res)).catch(() => {
-                window.location.href = resolvedDownloadUrl;
-            }).finally(() => {
-                setDownloadProgress(null);
-            });
+            addTask(Manifest.Id, Manifest.Name, Manifest.Version, false, resolvedDownloadUrl);
         }
     };
 
@@ -569,11 +526,6 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                         </Tooltip>
                     </div>
                     {!isWin && <Text size={200} style={{ color: tokens.colorNeutralForeground4 }}>{t('requiresWindows')}</Text>}
-                    {downloadProgress !== null && (
-                        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
-                            {`${t('download')} ${downloadProgress}%`}
-                        </Text>
-                    )}
                 </div>
             </div>
 
@@ -705,8 +657,6 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                     </DialogBody>
                 </DialogSurface>
             </Dialog>
-
-            <ChecksumDialog info={checksumInfo} onClose={() => setChecksumInfo(null)} />
         </div>
     );
 }

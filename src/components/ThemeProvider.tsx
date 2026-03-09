@@ -7,11 +7,19 @@ import {
     createDOMRenderer,
     RendererProvider,
     SSRProvider,
-    renderToStyleElements
+    renderToStyleElements,
+    Dialog,
+    DialogSurface,
+    DialogTitle,
+    DialogBody,
+    DialogContent,
+    DialogActions,
+    Button
 } from '@fluentui/react-components';
 import { useServerInsertedHTML } from 'next/navigation';
-import { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { DownloadProvider } from './DownloadProvider';
 
 interface ThemeContextValue {
     isDark: boolean;
@@ -52,36 +60,48 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
+    const [confirmLightModeOpen, setConfirmLightModeOpen] = useState(false);
+    const confirmSwitchRef = useRef<{ e?: React.MouseEvent } | null>(null);
+
+    const performThemeSwitch = useCallback((next: boolean, e?: React.MouseEvent) => {
+        if (e && typeof document !== 'undefined') {
+            const x = e.clientX;
+            const y = e.clientY;
+            setAnimContext({ x, y, isDarkNow: !next });
+            setIsAnimating(true);
+            document.documentElement.classList.toggle('dark', next);
+            setTimeout(() => {
+                localStorage.setItem('theme', next ? 'dark' : 'light');
+                setIsAnimating(false);
+                setAnimContext(null);
+            }, 500);
+        } else {
+            localStorage.setItem('theme', next ? 'dark' : 'light');
+            document.documentElement.classList.toggle('dark', next);
+        }
+        setIsDark(next);
+    }, []);
+
     const toggleTheme = useCallback((e?: React.MouseEvent) => {
         setIsDark(prev => {
             const next = !prev;
             if (prev === true && next === false) {
-                const confirmed = window.confirm(t('lightModeConfirm') || "You are about to switch to light mode, are you sure you want to blind yourself?");
-                if (!confirmed) return prev;
+                confirmSwitchRef.current = { e };
+                setConfirmLightModeOpen(true);
+                return prev;
             }
-
-            if (e && typeof document !== 'undefined') {
-                const x = e.clientX;
-                const y = e.clientY;
-                setAnimContext({ x, y, isDarkNow: prev });
-                setIsAnimating(true);
-
-                // Set the theme class to body for global styles if needed
-                document.documentElement.classList.toggle('dark', next);
-
-                setTimeout(() => {
-                    localStorage.setItem('theme', next ? 'dark' : 'light');
-                    setIsAnimating(false);
-                    setAnimContext(null);
-                }, 500); // Wait for transition
-            } else {
-                localStorage.setItem('theme', next ? 'dark' : 'light');
-                document.documentElement.classList.toggle('dark', next);
-            }
-
+            performThemeSwitch(next, e);
             return next;
         });
-    }, [t]);
+    }, [performThemeSwitch]);
+
+    const handleConfirmLightMode = () => {
+        setConfirmLightModeOpen(false);
+        if (confirmSwitchRef.current) {
+            performThemeSwitch(false, confirmSwitchRef.current.e);
+            confirmSwitchRef.current = null;
+        }
+    };
 
     useServerInsertedHTML(() => {
         // Only insert styles on the server
@@ -145,7 +165,30 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
                                 }
                             }
                         `}} />
-                        {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
+                        {mounted ? (
+                            <DownloadProvider>
+                                {children}
+                            </DownloadProvider>
+                        ) : <div style={{ visibility: 'hidden' }}>{children}</div>}
+
+                        <Dialog open={confirmLightModeOpen} onOpenChange={(_, data) => !data.open && setConfirmLightModeOpen(false)}>
+                            <DialogSurface>
+                                <DialogBody>
+                                    <DialogTitle>{t('lightModeConfirmTitle') || 'Danger Zone'}</DialogTitle>
+                                    <DialogContent>
+                                        {t('lightModeConfirm') || "You are about to switch to light mode, are you sure you want to blind yourself?"}
+                                    </DialogContent>
+                                    <DialogActions>
+                                        <Button appearance="secondary" onClick={() => setConfirmLightModeOpen(false)}>
+                                            {t('cancel') || 'Cancel'}
+                                        </Button>
+                                        <Button appearance="primary" onClick={handleConfirmLightMode}>
+                                            {t('confirm') || 'Confirm'}
+                                        </Button>
+                                    </DialogActions>
+                                </DialogBody>
+                            </DialogSurface>
+                        </Dialog>
                     </FluentProvider>
                 </SSRProvider>
             </RendererProvider>

@@ -34,6 +34,7 @@ interface DownloadProgress {
 interface DownloadOptions {
     fallbackFileName?: string;
     onProgress?: (progress: DownloadProgress) => void;
+    signal?: AbortSignal;
 }
 
 function triggerBrowserDownload(blob: Blob, fileName: string) {
@@ -48,7 +49,7 @@ function triggerBrowserDownload(blob: Blob, fileName: string) {
 }
 
 export async function downloadCipxByManifest(manifestUrl: string, options?: DownloadOptions): Promise<{ checksum: string, fileName: string, expectedChecksum?: string }> {
-    const manifestRes = await fetch(manifestUrl, { cache: 'no-store' });
+    const manifestRes = await fetch(manifestUrl, { cache: 'no-store', signal: options?.signal });
     if (!manifestRes.ok) {
         throw new Error(`Failed to fetch chunk manifest: HTTP ${manifestRes.status}`);
     }
@@ -74,7 +75,7 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
         manifest.chunks.map(async (chunkUrl) => {
             const baseUrl = manifestUrl.startsWith('http') ? manifestUrl : new URL(manifestUrl, window.location.origin).toString();
             const url = new URL(chunkUrl, baseUrl).toString();
-            const res = await fetch(url, { cache: 'no-store' });
+            const res = await fetch(url, { cache: 'no-store', signal: options?.signal });
             if (!res.ok) {
                 throw new Error(`Failed to fetch chunk: HTTP ${res.status}`);
             }
@@ -109,7 +110,7 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
 }
 
 export async function downloadFileUrl(downloadUrl: string, options?: DownloadOptions): Promise<{ checksum: string, fileName: string }> {
-    const res = await fetch(downloadUrl, { cache: 'no-store' });
+    const res = await fetch(downloadUrl, { cache: 'no-store', signal: options?.signal });
     if (!res.ok) {
         throw new Error(`Failed to fetch file: HTTP ${res.status}`);
     }
@@ -131,6 +132,9 @@ export async function downloadFileUrl(downloadUrl: string, options?: DownloadOpt
         });
 
         while (true) {
+            if (options?.signal?.aborted) {
+                throw new DOMException("Aborted", "AbortError");
+            }
             const { done, value } = await reader.read();
             if (done) break;
             if (value) {

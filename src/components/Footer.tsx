@@ -54,9 +54,8 @@ export function Footer() {
     const [now, setNow] = useState(0);
 
     useEffect(() => {
-        // eslint-disable-next-line
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
-        // eslint-disable-next-line
         setNow(Date.now());
         const interval = setInterval(() => setNow(Date.now()), 60000);
         return () => clearInterval(interval);

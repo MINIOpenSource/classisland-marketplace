@@ -13,13 +13,20 @@ import {
     MenuItem,
     MenuPopover,
     Avatar,
-    Badge
+    Badge,
+    Popover,
+    PopoverTrigger,
+    PopoverSurface,
+    Text,
+    ProgressBar,
+    Subtitle2
 } from '@fluentui/react-components';
-import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular, ArrowLeftRegular, ChevronRightRegular, ArrowDownloadRegular } from '@fluentui/react-icons';
+import { TranslateRegular, WeatherSunnyRegular, WeatherMoonRegular, ArrowLeftRegular, ChevronRightRegular, ArrowDownloadRegular, PlayRegular, PauseRegular, DismissRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import { useLocale } from '@/components/LanguageProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { useTopBar } from '@/components/TopBarProvider';
+import { useDownload } from '@/components/DownloadProvider';
 import { useRouter } from 'next/navigation';
 
 const useStyles = makeStyles({
@@ -106,6 +113,7 @@ export function Header() {
     const { setLocale } = useLocale();
     const { isDark, toggleTheme } = useTheme();
     const { showBack, pluginInfo } = useTopBar();
+    const { tasks, pauseTask, resumeTask, cancelTask } = useDownload();
     const router = useRouter();
     const [isScrolled, setIsScrolled] = useState(false);
 
@@ -208,12 +216,55 @@ export function Header() {
                     {pluginInfo && pluginInfo.actions}
                 </div>
 
-                <Button
-                    icon={<ArrowDownloadRegular />}
-                    appearance="subtle"
-                    title={t('downloads') || 'Downloads'}
-                    className={styles.actionButton}
-                />
+                <Popover withArrow positioning="below-end">
+                    <PopoverTrigger disableButtonEnhancement>
+                        <Button
+                            icon={
+                                <div style={{ position: 'relative', display: 'flex' }}>
+                                    <ArrowDownloadRegular />
+                                    {tasks.filter(t => t.status === 'downloading').length > 0 && (
+                                        <Badge color="danger" size="small" shape="circular" style={{ position: 'absolute', top: -6, right: -6, minWidth: '8px', padding: 0 }} />
+                                    )}
+                                </div>
+                            }
+                            appearance="subtle"
+                            title={t('downloads') || 'Downloads'}
+                            className={styles.actionButton}
+                        />
+                    </PopoverTrigger>
+                    <PopoverSurface style={{ width: '300px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <Subtitle2>{t('downloads') || 'Downloads'}</Subtitle2>
+                        {tasks.length === 0 ? (
+                            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{t('noDownloads') || 'No downloads yet'}</Text>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                                {tasks.map(task => (
+                                    <div key={task.id} style={{ padding: '12px', borderRadius: tokens.borderRadiusMedium, backgroundColor: tokens.colorNeutralBackground2, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', marginRight: '8px' }}>
+                                                <Text weight="semibold" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.pluginName}</Text>
+                                                <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{task.version}</Text>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                                                {task.status === 'downloading' ? (
+                                                    <Button icon={<PauseRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => pauseTask(task.id)} style={{ minWidth: '24px', padding: '0 4px' }} title={t('pause') || 'Pause'} />
+                                                ) : task.status === 'paused' ? (
+                                                    <Button icon={<PlayRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => resumeTask(task.id)} style={{ minWidth: '24px', padding: '0 4px' }} title={t('resume') || 'Resume'} />
+                                                ) : null}
+                                                <Button icon={<DismissRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => cancelTask(task.id)} style={{ minWidth: '24px', padding: '0 4px' }} title={t('cancel') || 'Cancel'} />
+                                            </div>
+                                        </div>
+                                        {(task.status === 'downloading' || task.status === 'paused') && (
+                                            <ProgressBar value={task.progress} max={100} color={task.status === 'paused' ? 'warning' : 'brand'} />
+                                        )}
+                                        {task.status === 'error' && <Text size={200} style={{ color: tokens.colorPaletteRedForeground1 }}>{t('error') || 'Error'}: {task.error}</Text>}
+                                        {task.status === 'completed' && <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>{t('completed') || 'Completed'}</Text>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </PopoverSurface>
+                </Popover>
                 <Button
                     icon={isDark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
                     appearance="subtle"
