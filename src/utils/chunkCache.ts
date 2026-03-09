@@ -1,4 +1,8 @@
-const CACHE_VERSION = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_CF_PAGES_COMMIT_SHA || 'dev';
+const CACHE_VERSION =
+    process.env.NEXT_PUBLIC_GITHUB_SHA ||
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
+    process.env.NEXT_PUBLIC_CF_PAGES_COMMIT_SHA ||
+    'dev';
 const CACHE_NAME = `cipx-chunks-${CACHE_VERSION}`;
 
 export async function getCache() {

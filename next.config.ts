@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 
 let buildHash = 'unknown';
 try {
-    const defaultHash = process.env.CF_PAGES_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA;
+    const defaultHash = process.env.GITHUB_SHA || process.env.CF_PAGES_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA;
     buildHash = defaultHash ? defaultHash.substring(0, 7) : execSync('git rev-parse --short HEAD').toString().trim();
 } catch { }
 
@@ -31,10 +31,12 @@ const nextConfig = {
         BUILD_HASH: buildHash,
         CF_PAGES: process.env.CF_PAGES || '',
         VERCEL: process.env.VERCEL || '',
+        GITHUB_PAGES: process.env.GITHUB_PAGES || '',
         IS_DEV: process.env.NODE_ENV === 'development' ? 'true' : 'false',
         COMMIT_HISTORY: JSON.stringify(commitHistory),
         CF_PAGES_URL: process.env.CF_PAGES_URL || '',
         VERCEL_URL: process.env.VERCEL_URL || '',
+        GITHUB_PAGES_URL: process.env.GITHUB_PAGES_URL || '',
     },
     experimental: {
         viewTransition: true
