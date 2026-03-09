@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTopBar } from '@/components/TopBarProvider';
 import { useInView } from 'react-intersection-observer';
 import { useTranslations } from 'next-intl';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import packageJson from '../../../../package.json';
 import commitsData from '@/data/commits.json';
 
