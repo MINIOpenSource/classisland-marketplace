@@ -1,11 +1,12 @@
 'use client';
 
-import { Title1, Title3, Text, Link, makeStyles, Button } from '@fluentui/react-components';
+import { Title1, Title3, Text, Link, makeStyles, Button, mergeClasses } from '@fluentui/react-components';
 import { ArrowLeftRegular, BranchRegular } from '@fluentui/react-icons';
 import { useRouter } from 'next/navigation';
 import { useTopBar } from '@/components/TopBarProvider';
 import { useInView } from 'react-intersection-observer';
-import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { useState, useEffect } from 'react';
 import packageJson from '../../../../package.json';
 
 const useStyles = makeStyles({
@@ -94,10 +95,25 @@ const useStyles = makeStyles({
     }
 });
 
+interface GitHubCommit {
+    sha: string;
+    commit: {
+        author: {
+            name: string;
+            date: string;
+        };
+        message: string;
+    };
+}
+
 export default function AboutPage() {
     const styles = useStyles();
     const router = useRouter();
     const { setShowBack } = useTopBar();
+    const t = useTranslations('Index');
+
+    const [commits, setCommits] = useState<GitHubCommit[] | null>(null);
+    const [commitsError, setCommitsError] = useState(false);
 
     const { ref: backBtnRef, inView: backBtnInView } = useInView({
         initialInView: true,
@@ -112,16 +128,21 @@ export default function AboutPage() {
         return () => setShowBack(false);
     }, [setShowBack]);
 
-    // ... removed unused variables ...
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let commitHistory: any[] = [];
-    try {
-        if (process.env.COMMIT_HISTORY) {
-            commitHistory = JSON.parse(process.env.COMMIT_HISTORY);
-        }
-    } catch { }
-
-
+    useEffect(() => {
+        let isMounted = true;
+        fetch('https://api.github.com/repos/MINIOpenSource/classisland-marketplace/commits?per_page=10')
+            .then(res => {
+                if (!res.ok) throw new Error('API Error');
+                return res.json();
+            })
+            .then(data => {
+                if (isMounted) setCommits(data);
+            })
+            .catch(() => {
+                if (isMounted) setCommitsError(true);
+            });
+        return () => { isMounted = false; };
+    }, []);
 
     return (
         <div className={styles.container}>
@@ -130,83 +151,88 @@ export default function AboutPage() {
                     appearance="subtle"
                     icon={<ArrowLeftRegular />}
                     onClick={() => router.back()}
-                    className={`${styles.actionButton} ${styles.backButton}`}
+                    className={mergeClasses(styles.actionButton, styles.backButton)}
                 >
-                    返回
+                    {t('back')}
                 </Button>
             </div>
 
-            <Title1>关于 ClassIsland 插件市场</Title1>
+            <Title1>{t('aboutPageTitle')}</Title1>
 
             <div className={styles.section}>
                 <Text size={400}>
-                    ClassIsland 插件市场是专为 ClassIsland 用户打造的官方插件分享与下载平台。在这里，你可以体验到丰富的功能扩展。
+                    {t('aboutPageDesc')}
                 </Text>
             </div>
 
             <div className={styles.section}>
-                <Title3>当前版本</Title3>
+                <Title3>{t('currentVersionLabel')}</Title3>
                 <Text>v{packageJson.version}</Text>
             </div>
 
             <div className={styles.section}>
-                <Title3>开源与贡献</Title3>
+                <Title3>{t('openSourceContrib')}</Title3>
                 <Text>
-                    本项目基于开源驱动，欢迎在 GitHub 上提交 Issue 或发起 Pull Request：
+                    {t('openSourceDesc')}
                 </Text>
                 <Link href="https://github.com/MINIOpenSource/classisland-marketplace" target="_blank">
-                    ClassIsland Marketplace Frontend (GitHub)
+                    {t('githubRepo')}
                 </Link>
             </div>
 
             <div className={styles.section}>
-                <Title3>相关链接</Title3>
-                <Link href="https://classisland.tech" target="_blank">ClassIsland 官方网站</Link>
-                <Link href="https://docs.classisland.tech" target="_blank">ClassIsland 官方文档</Link>
-                <Link href="https://github.com/MINIOpenSource/classisland-marketplace" target="_blank">ClassIsland Marketplace Frontend (GitHub)</Link>
+                <Title3>{t('relatedLinks')}</Title3>
+                <Link href="https://classisland.tech" target="_blank">{t('officialWebsite')}</Link>
+                <Link href="https://docs.classisland.tech" target="_blank">{t('officialDocs')}</Link>
+                <Link href="https://github.com/MINIOpenSource/classisland-marketplace" target="_blank">{t('githubRepo')}</Link>
             </div>
 
-            {commitHistory.length > 0 && (
-                <div className={styles.section} style={{ marginTop: '24px' }}>
-                    <Title3>插件市场历史版本</Title3>
-                    <Text size={300} style={{ color: 'var(--colorNeutralForeground3)' }}>
-                        展示最近的网络部署版本记录。
-                    </Text>
-                    {commitHistory.map((commit, idx) => {
+            <div className={styles.section} style={{ marginTop: '24px' }}>
+                <Title3>{t('pluginMarketHistory')}</Title3>
+                <Text size={300} style={{ color: 'var(--colorNeutralForeground3)' }}>
+                    {t('historyVersionDesc')}
+                </Text>
+
+                {commitsError ? (
+                    <Text size={300} style={{ color: 'var(--colorPaletteRedForeground1)' }}>{t('loadCommitsError')}</Text>
+                ) : commits === null ? (
+                    <Text size={300} style={{ color: 'var(--colorNeutralForeground3)' }}>{t('loadingCommits')}</Text>
+                ) : (
+                    commits.map((commitData, idx) => {
                         return (
-                            <div key={commit.hash} className={styles.timelineItem}>
+                            <div key={commitData.sha} className={styles.timelineItem}>
                                 <div className={styles.timelineLine}>
                                     <div className={styles.timelineDot} />
-                                    {idx < commitHistory.length - 1 && (
+                                    {idx < commits.length - 1 && (
                                         <div className={styles.timelineConnector} />
                                     )}
                                 </div>
                                 <div className={styles.versionContent}>
                                     <div className={styles.versionHeader}>
                                         <BranchRegular />
-                                        <Text weight="semibold" style={{ fontFamily: 'ui-monospace, monospace' }}>{commit.shortHash}</Text>
+                                        <Text weight="semibold" style={{ fontFamily: 'ui-monospace, monospace' }}>{commitData.sha.substring(0, 7)}</Text>
                                         <Text size={200} style={{ color: 'var(--colorNeutralForeground3)' }}>
-                                            {commit.date}
+                                            {new Date(commitData.commit.author.date).toLocaleString()}
                                         </Text>
                                         <Text size={200} style={{ color: 'var(--colorNeutralForeground4)' }}>
-                                            {commit.author}
+                                            {commitData.commit.author.name}
                                         </Text>
                                     </div>
-                                    <Text size={300} style={{ display: 'block', marginTop: '4px' }}>{commit.message}</Text>
+                                    <Text size={300} style={{ display: 'block', marginTop: '4px', whiteSpace: 'pre-wrap' }}>{commitData.commit.message}</Text>
                                     <div className={styles.versionLinks}>
                                         <Link
-                                            href={`https://github.com/MINIOpenSource/classisland-marketplace/commit/${commit.hash}`}
+                                            href={`https://github.com/MINIOpenSource/classisland-marketplace/commit/${commitData.sha}`}
                                             target="_blank"
                                         >
-                                            GitHub Commit记录
+                                            {t('githubCommitRecord')}
                                         </Link>
                                     </div>
                                 </div>
                             </div>
                         );
-                    })}
-                </div>
-            )}
+                    })
+                )}
+            </div>
         </div>
     );
 }

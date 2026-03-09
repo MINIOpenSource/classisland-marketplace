@@ -1,6 +1,6 @@
-'use client';
-
 import * as SparkMD5Lib from 'spark-md5';
+import { getChunk, putChunk, clearOldCaches } from './chunkCache';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SparkMD5 = (SparkMD5Lib as any).default || SparkMD5Lib;
 
@@ -15,7 +15,6 @@ function calculateMD5(buffer: ArrayBuffer): string {
     return spark.end();
 }
 
-
 export interface CipxChunkManifest {
     fileName: string;
     totalSize: number;
@@ -29,11 +28,13 @@ interface DownloadProgress {
     completedChunks: number;
     loadedBytes: number;
     totalBytes: number;
+    statusText?: string;
 }
 
 interface DownloadOptions {
     fallbackFileName?: string;
     onProgress?: (progress: DownloadProgress) => void;
+    onManifestLoaded?: (manifest: CipxChunkManifest) => void;
     signal?: AbortSignal;
 }
 
@@ -49,6 +50,8 @@ function triggerBrowserDownload(blob: Blob, fileName: string) {
 }
 
 export async function downloadCipxByManifest(manifestUrl: string, options?: DownloadOptions): Promise<{ checksum: string, fileName: string, expectedChecksum?: string }> {
+    await clearOldCaches(); // clear old caches when downloading a new manifest
+
     const manifestRes = await fetch(manifestUrl, { cache: 'no-store', signal: options?.signal });
     if (!manifestRes.ok) {
         throw new Error(`Failed to fetch chunk manifest: HTTP ${manifestRes.status}`);
@@ -58,6 +61,8 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
     if (!manifest.chunks || manifest.chunks.length === 0) {
         throw new Error('Invalid chunk manifest: no chunks');
     }
+
+    options?.onManifestLoaded?.(manifest);
 
     const totalChunks = manifest.chunks.length;
     let completedChunks = 0;
@@ -71,26 +76,59 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
         totalBytes,
     });
 
-    const chunkBuffers = await Promise.all(
-        manifest.chunks.map(async (chunkUrl) => {
+    // To allow pausing and lower memory overhead, we fetch chunks concurrently but limit it.
+    // Also use cache API to skip downloading if cached.
+    const chunkBuffers: ArrayBuffer[] = new Array(totalChunks);
+
+    const poolLimit = 5;
+    let index = 0;
+
+    const executePool = async () => {
+        while (index < totalChunks) {
+            if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+            const idx = index++;
+            const chunkUrl = manifest.chunks[idx];
             const baseUrl = manifestUrl.startsWith('http') ? manifestUrl : new URL(manifestUrl, window.location.origin).toString();
             const url = new URL(chunkUrl, baseUrl).toString();
-            const res = await fetch(url, { cache: 'no-store', signal: options?.signal });
-            if (!res.ok) {
-                throw new Error(`Failed to fetch chunk: HTTP ${res.status}`);
+
+            let buf = await getChunk(url);
+
+            if (!buf) {
+                const res = await fetch(url, { cache: 'no-store', signal: options?.signal });
+                if (!res.ok) {
+                    throw new Error(`Failed to fetch chunk: HTTP ${res.status}`);
+                }
+                buf = await res.arrayBuffer();
+                await putChunk(url, buf);
             }
-            const buf = await res.arrayBuffer();
+
+            chunkBuffers[idx] = buf;
             completedChunks += 1;
             loadedBytes += buf.byteLength;
+
             options?.onProgress?.({
                 totalChunks,
                 completedChunks,
                 loadedBytes,
                 totalBytes: totalBytes || loadedBytes,
             });
-            return buf;
-        })
-    );
+        }
+    };
+
+    const runners: Promise<void>[] = [];
+    for (let i = 0; i < poolLimit; i++) {
+        runners.push(executePool());
+    }
+    await Promise.all(runners);
+
+    options?.onProgress?.({
+        totalChunks,
+        completedChunks,
+        loadedBytes,
+        totalBytes: totalBytes || loadedBytes,
+        statusText: 'merging'
+    });
 
     const combinedLength = chunkBuffers.reduce((acc, curr) => acc + curr.byteLength, 0);
     const combined = new Uint8Array(combinedLength);
@@ -99,6 +137,14 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
         combined.set(new Uint8Array(buf), offset);
         offset += buf.byteLength;
     }
+
+    options?.onProgress?.({
+        totalChunks,
+        completedChunks,
+        loadedBytes,
+        totalBytes: totalBytes || loadedBytes,
+        statusText: 'verifying'
+    });
 
     const checksum = calculateMD5(combined.buffer);
 

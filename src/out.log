@@ -1,0 +1,34 @@
+Missing in ZH: [
+  'noDownloads',
+  'pause',
+  'resume',
+  'delete',
+  'downloadStatusMerging',
+  'downloadStatusVerifying',
+  'error',
+  'completed',
+  'save',
+  'a',
+  'viewAll',
+  'lightModeConfirmTitle',
+  'hex'
+]
+Missing in EN: [
+  'noDownloads',
+  'pause',
+  'resume',
+  'delete',
+  'downloadStatusMerging',
+  'downloadStatusVerifying',
+  'error',
+  'completed',
+  'save',
+  'checksumLocalDesc',
+  'checksumRemoteDesc',
+  'checksumMatch',
+  'checksumMismatch',
+  'a',
+  'viewAll',
+  'lightModeConfirmTitle',
+  'hex'
+]

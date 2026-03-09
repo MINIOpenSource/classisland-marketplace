@@ -13,7 +13,8 @@ import {
     DialogTitle,
     DialogBody,
     DialogActions,
-    DialogContent
+    DialogContent,
+    mergeClasses
 } from '@fluentui/react-components';
 import { ArrowDownloadRegular, StarRegular, ArrowLeftRegular, OpenRegular, CopyRegular, CheckmarkRegular, CodeRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
@@ -273,7 +274,24 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
     const [origin, setOrigin] = useState('');
     const [confirmLink, setConfirmLink] = useState<string | null>(null);
     const [embedDialogOpen, setEmbedDialogOpen] = useState(false);
+    const [hasCache, setHasCache] = useState(false);
     const { addTask } = useDownload();
+
+    useEffect(() => {
+        if (!plugin.LocalDownloadChunkManifest) return;
+        let isCurrent = true;
+        fetch(plugin.LocalDownloadChunkManifest, { cache: 'no-store' })
+            .then(res => res.json())
+            .then(async manifest => {
+                if (!isCurrent || !manifest.chunks) return;
+                const { hasAllChunks } = await import('@/utils/chunkCache');
+                const baseUrl = plugin.LocalDownloadChunkManifest!.startsWith('http') ? plugin.LocalDownloadChunkManifest! : new URL(plugin.LocalDownloadChunkManifest!, window.location.origin).toString();
+                const urls = manifest.chunks.map((c: string) => new URL(c, baseUrl).toString());
+                const ok = await hasAllChunks(urls);
+                if (isCurrent) setHasCache(ok);
+            }).catch(() => { });
+        return () => { isCurrent = false; };
+    }, [plugin.LocalDownloadChunkManifest]);
 
     const handleLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = (e.target as HTMLElement).closest('a');
@@ -373,7 +391,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                 appearance="outline"
                                 icon={<ArrowDownloadRegular />}
                                 onClick={handleDownload}
-                                title={t('download')}
+                                title={hasCache ? t('save') : t('download')}
                                 className={styles.actionButton}
                                 style={{ minWidth: '38px', padding: 0 }}
                             />
@@ -422,7 +440,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                     appearance="subtle"
                     icon={<ArrowLeftRegular />}
                     onClick={() => router.back()}
-                    className={`${styles.actionButton} ${styles.backButton}`}
+                    className={mergeClasses(styles.actionButton, styles.backButton)}
                 >
                     {t('back')}
                 </Button>
@@ -486,7 +504,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                         >
                             <span className={styles.buttonText}>{t('install')}</span>
                         </Button>
-                        <Tooltip content={`${t('download')} (.cipx)${sizeStr ? ` - ${sizeStr}` : ''}`} relationship="label">
+                        <Tooltip content={`${hasCache ? t('save') : t('download')} (.cipx)${sizeStr ? ` - ${sizeStr}` : ''}`} relationship="label">
                             <Button
                                 appearance="outline"
                                 size="large"
@@ -494,7 +512,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                                 onClick={handleDownload}
                                 className={styles.responsiveButton}
                             >
-                                <span className={styles.buttonText}>{t('download')}</span>
+                                <span className={styles.buttonText}>{hasCache ? t('save') : t('download')}</span>
                             </Button>
                         </Tooltip>
                         {Manifest.Url && (
