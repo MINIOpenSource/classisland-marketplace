@@ -76,11 +76,10 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
         totalBytes,
     });
 
-    // To allow pausing and lower memory overhead, we fetch chunks concurrently but limit it.
-    // Also use cache API to skip downloading if cached.
+    // Fetch chunks concurrently and use cache API to skip redownloading cached chunks.
     const chunkBuffers: ArrayBuffer[] = new Array(totalChunks);
 
-    const poolLimit = 5;
+    const poolLimit = totalChunks;
     let index = 0;
 
     const executePool = async () => {
