@@ -12,10 +12,11 @@ import {
     mergeClasses,
 } from '@fluentui/react-components';
 import { ArrowLeftRegular, PlayRegular, PauseRegular, DismissRegular, ArrowClockwiseRegular } from '@fluentui/react-icons';
+import { formatBytes } from '@/components/PluginCard';
 import { useRouter } from 'next/navigation';
 import { useTopBar } from '@/components/TopBarProvider';
 import { useInView } from 'react-intersection-observer';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const useStyles = makeStyles({
     container: {
@@ -110,6 +111,57 @@ export default function DownloadsPage() {
         return () => setShowBack(false);
     }, [setShowBack]);
 
+    const [isTesting, setIsTesting] = useState(false);
+    const [testProgress, setTestProgress] = useState<number | null>(null);
+    const [testSpeed, setTestSpeed] = useState<string | null>(null);
+    const [testTime, setTestTime] = useState<string | null>(null);
+
+    const runSpeedTest = async () => {
+        setIsTesting(true);
+        setTestProgress(0);
+        setTestSpeed(null);
+        setTestTime(null);
+
+        try {
+            const manifestRes = await fetch(`/speedtest/manifest.json?t=${Date.now()}`, { cache: 'no-store' });
+            if (!manifestRes.ok) throw new Error('Speedtest manifest fetch failed');
+            const manifest = await manifestRes.json();
+
+            const chunks = manifest.chunks as string[];
+            let loadedBytes = 0;
+            const totalBytes = chunks.length * 192 * 1024;
+            const startTime = performance.now();
+
+            const poolLimit = chunks.length;
+            let index = 0;
+            const executePool = async () => {
+                while (index < chunks.length) {
+                    const idx = index++;
+                    const res = await fetch(`${chunks[idx]}?t=${Date.now()}`, { cache: 'no-store' });
+                    const buf = await res.arrayBuffer();
+                    loadedBytes += buf.byteLength;
+                    setTestProgress(Math.floor((loadedBytes / totalBytes) * 100));
+                }
+            };
+
+            const runners: Promise<void>[] = [];
+            for (let i = 0; i < poolLimit; i++) {
+                runners.push(executePool());
+            }
+            await Promise.all(runners);
+
+            const endTime = performance.now();
+            const durationSeconds = (endTime - startTime) / 1000;
+            setTestTime(durationSeconds.toFixed(2));
+            setTestSpeed(formatBytes(totalBytes / durationSeconds) + '/s');
+        } catch (err) {
+            console.error('Speed test failed:', err);
+            setTestTime('Error');
+        } finally {
+            setIsTesting(false);
+        }
+    };
+
     return (
         <div className={styles.container}>
             <div ref={backBtnRef}>
@@ -124,7 +176,37 @@ export default function DownloadsPage() {
             </div>
             <div className={styles.headerRow}>
                 <Title1>{t('downloads') || 'Downloads'}</Title1>
+                <div style={{ flex: 1 }} />
+                <Button
+                    appearance="secondary"
+                    icon={<PlayRegular />}
+                    disabled={isTesting}
+                    onClick={runSpeedTest}
+                >
+                    {t('speedTest') || 'Speed Test'}
+                </Button>
             </div>
+
+            {(isTesting || testSpeed !== null || testTime === 'Error') && (
+                <div className={styles.card}>
+                    <div className={styles.cardHeader}>
+                        <div className={styles.pluginInfo}>
+                            <Text weight="semibold" className={styles.pluginName}>{t('speedTest') || 'Speed Test'}</Text>
+                            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                                {isTesting ? (t('testing') || 'Testing...') : (t('completed') || 'Completed')}
+                            </Text>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <ProgressBar value={testProgress || 0} max={100} color={testTime === 'Error' ? "error" : "brand"} thickness="large" />
+                        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                            {testTime === 'Error' ? (t('error') || 'Error') : `${testProgress || 0}%`}
+                            {testSpeed ? ` • ${testSpeed}` : ''}
+                            {testTime && testTime !== 'Error' ? ` • ${testTime}s` : ''}
+                        </Text>
+                    </div>
+                </div>
+            )}
 
             {tasks.length === 0 ? (
                 <div className={styles.emptyState}>

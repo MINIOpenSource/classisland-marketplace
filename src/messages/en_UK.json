@@ -89,7 +89,9 @@
         "historyVersionDesc": "Showing recent web deployment version records from GitHub.",
         "githubCommitRecord": "GitHub Commit Record",
         "loadingCommits": "Loading commit records from GitHub...",
-        "loadCommitsError": "Failed to load commit records."
+        "loadCommitsError": "Failed to load commit records.",
+        "speedTest": "Network Speed Test",
+        "testing": "Testing..."
     },
     "NotFound": {
         "code": "404",
