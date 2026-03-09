@@ -324,7 +324,17 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
 
     const handleDownload = () => {
         if (plugin.LocalDownloadChunkManifest) {
-            addTask(Manifest.Id, Manifest.Name, Manifest.Version, true, plugin.LocalDownloadChunkManifest);
+            if (hasCache) {
+                // Trigger download directly using the manifest logic down in cipxDownloader
+                import('@/utils/cipxDownloader').then(({ downloadCipxByManifest }) => {
+                    downloadCipxByManifest(plugin.LocalDownloadChunkManifest!, {
+                        fallbackFileName: `${Manifest.Id}.cipx`,
+                        onProgress: () => { }
+                    }).catch(console.error);
+                });
+            } else {
+                addTask(Manifest.Id, Manifest.Name, Manifest.Version, true, plugin.LocalDownloadChunkManifest);
+            }
             return;
         }
         if (resolvedDownloadUrl) {

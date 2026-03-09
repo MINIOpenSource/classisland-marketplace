@@ -22,7 +22,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useState, useRef } from 'react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
+import { useDownload } from './DownloadProvider';
 import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
 
 export interface VersionEntry {
@@ -265,10 +265,11 @@ export function VersionHistory({
     const styles = useStyles();
     const t = useTranslations('Index');
     const [expanded, setExpanded] = useState(false);
-    const [downloadingTag, setDownloadingTag] = useState<string | null>(null);
-    const [downloadProgress, setDownloadProgress] = useState(0);
     const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const downloadContext = useDownload();
+    const addTask = downloadContext?.addTask;
+    const tasks = downloadContext?.tasks || [];
 
     const toggleExpanded = () => {
         if (expanded && containerRef.current) {
@@ -418,52 +419,21 @@ export function VersionHistory({
                                             appearance="subtle"
                                             size="small"
                                             icon={<ArrowDownloadRegular />}
-                                            disabled={downloadingTag === (entry.tagName || entry.version)}
+                                            disabled={tasks.some(t => t.version === entry.version && t.status === 'downloading')}
                                             onClick={() => {
                                                 const key = entry.tagName || entry.version;
-                                                if (entry.cipxChunkManifestUrl) {
-                                                    setDownloadingTag(key);
-                                                    setDownloadProgress(0);
-                                                    downloadCipxByManifest(entry.cipxChunkManifestUrl, {
-                                                        fallbackFileName: `${key || 'plugin'}.cipx`,
-                                                        onProgress: ({ completedChunks, totalChunks }) => {
-                                                            setDownloadProgress(totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0);
-                                                        },
-                                                    }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch((err) => {
-                                                        console.error('Failed to download from manifest:', err);
-                                                        if (entry.cipxDownloadUrl) {
-                                                            downloadFileUrl(entry.cipxDownloadUrl, {
-                                                                fallbackFileName: `${key || 'plugin'}.cipx`,
-                                                                onProgress: ({ loadedBytes, totalBytes }) => {
-                                                                    setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0);
-                                                                }
-                                                            }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch(() => {
-                                                                window.location.href = entry.cipxDownloadUrl!;
-                                                            });
-                                                        }
-                                                    }).finally(() => {
-                                                        setDownloadingTag(null);
-                                                    });
-                                                    return;
-                                                }
-                                                if (entry.cipxDownloadUrl) {
-                                                    setDownloadingTag(key);
-                                                    setDownloadProgress(0);
-                                                    downloadFileUrl(entry.cipxDownloadUrl, {
-                                                        fallbackFileName: `${key || 'plugin'}.cipx`,
-                                                        onProgress: ({ loadedBytes, totalBytes }) => {
-                                                            setDownloadProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0);
-                                                        }
-                                                    }).then(res => setChecksumInfo(entry.md5Checksum ? { ...res, checksum: entry.md5Checksum } : res)).catch(() => {
-                                                        window.location.href = entry.cipxDownloadUrl!;
-                                                    }).finally(() => {
-                                                        setDownloadingTag(null);
-                                                    });
+                                                const manifestUrl = entry.cipxChunkManifestUrl;
+                                                const fileUrl = entry.cipxDownloadUrl;
+
+                                                if (manifestUrl) {
+                                                    addTask?.(key, key, entry.version, true, manifestUrl);
+                                                } else if (fileUrl) {
+                                                    addTask?.(key, key, entry.version, false, fileUrl);
                                                 }
                                             }}
                                         >
-                                            {downloadingTag === (entry.tagName || entry.version)
-                                                ? `${t('downloadVersion')} ${downloadProgress}%`
+                                            {tasks.some(t => t.version === entry.version && t.status === 'downloading')
+                                                ? `${t('downloadVersion')} ${tasks.find(t => t.version === entry.version && t.status === 'downloading')?.progress || 0}%`
                                                 : t('downloadVersion')}
                                         </Button>
                                     )}

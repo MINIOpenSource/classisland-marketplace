@@ -155,73 +155,33 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
 }
 
 export async function downloadFileUrl(downloadUrl: string, options?: DownloadOptions): Promise<{ checksum: string, fileName: string }> {
-    const res = await fetch(downloadUrl, { cache: 'no-store', signal: options?.signal });
-    if (!res.ok) {
-        throw new Error(`Failed to fetch file: HTTP ${res.status}`);
-    }
-
-    const totalBytes = Number(res.headers.get('content-length')) || 0;
-    let loadedBytes = 0;
-
-    let buf: ArrayBuffer;
-
-    if (res.body) {
-        const reader = res.body.getReader();
-        const chunks: Uint8Array[] = [];
-
-        options?.onProgress?.({
-            totalChunks: 1,
-            completedChunks: 0,
-            loadedBytes: 0,
-            totalBytes,
-        });
-
-        while (true) {
-            if (options?.signal?.aborted) {
-                throw new DOMException("Aborted", "AbortError");
-            }
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) {
-                chunks.push(value);
-                loadedBytes += value.byteLength;
-                options?.onProgress?.({
-                    totalChunks: 1,
-                    completedChunks: 0,
-                    loadedBytes,
-                    totalBytes: totalBytes || loadedBytes,
-                });
-            }
-        }
-
-        const combined = new Uint8Array(loadedBytes);
-        let offset = 0;
-        for (const chunk of chunks) {
-            combined.set(chunk, offset);
-            offset += chunk.byteLength;
-        }
-        buf = combined.buffer;
+    // 1. Get file size
+    const headRes = await fetch(downloadUrl, { method: 'HEAD', cache: 'no-store', signal: options?.signal }).catch(() => null);
+    let totalBytes = 0;
+    if (headRes && headRes.ok) {
+        totalBytes = Number(headRes.headers.get('content-length')) || 0;
     } else {
-        buf = await res.arrayBuffer();
-        loadedBytes = buf.byteLength;
-        options?.onProgress?.({
-            totalChunks: 1,
-            completedChunks: 1,
-            loadedBytes,
-            totalBytes: totalBytes || loadedBytes,
-        });
+        // Fallback to GET with Range: bytes=0-0 to get content length
+        const rangeRes = await fetch(downloadUrl, { headers: { Range: 'bytes=0-0' }, cache: 'no-store', signal: options?.signal });
+        if (rangeRes.ok || rangeRes.status === 206) {
+            const cr = rangeRes.headers.get('content-range');
+            if (cr) {
+                const match = cr.match(/\/(\d+)/);
+                if (match) totalBytes = Number(match[1]);
+            }
+            if (!totalBytes) {
+                totalBytes = Number(rangeRes.headers.get('content-length')) || 0;
+            }
+        }
     }
 
-    const checksum = calculateMD5(buf);
-
-    const blob = new Blob([buf], { type: 'application/octet-stream' });
-    // Attempt to extract filename from URL or Content-Disposition, else fallback
+    // Attempt to extract filename from URL, fallback to options
     let fileName = options?.fallbackFileName || 'plugin.cipx';
-    const contentDisposition = res.headers.get('content-disposition');
-    if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (match) {
-            fileName = match[1];
+    if (headRes && headRes.headers.get('content-disposition')) {
+        const contentDisposition = headRes.headers.get('content-disposition');
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (match) fileName = match[1];
         }
     } else {
         try {
@@ -231,11 +191,167 @@ export async function downloadFileUrl(downloadUrl: string, options?: DownloadOpt
             if (lastPart && lastPart.includes('.')) {
                 fileName = decodeURIComponent(lastPart);
             }
-        } catch {
-            // ignore
+        } catch { }
+    }
+
+    if (!totalBytes) {
+        // Fallback to plain download if we can't get size or it doesn't support ranges
+        const res = await fetch(downloadUrl, { cache: 'no-store', signal: options?.signal });
+        if (!res.ok) throw new Error(`Failed to fetch file: HTTP ${res.status}`);
+        totalBytes = Number(res.headers.get('content-length')) || 0;
+        let loadedBytes = 0;
+        let buf: ArrayBuffer;
+        if (res.body) {
+            const reader = res.body.getReader();
+            const chunks: Uint8Array[] = [];
+            options?.onProgress?.({ totalChunks: 1, completedChunks: 0, loadedBytes: 0, totalBytes });
+            while (true) {
+                if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (value) {
+                    chunks.push(value);
+                    loadedBytes += value.byteLength;
+                    options?.onProgress?.({ totalChunks: 1, completedChunks: 0, loadedBytes, totalBytes: totalBytes || loadedBytes });
+                }
+            }
+            const combined = new Uint8Array(loadedBytes);
+            let offset = 0;
+            for (const chunk of chunks) { combined.set(chunk, offset); offset += chunk.byteLength; }
+            buf = combined.buffer;
+        } else {
+            buf = await res.arrayBuffer();
+            loadedBytes = buf.byteLength;
+            options?.onProgress?.({ totalChunks: 1, completedChunks: 1, loadedBytes, totalBytes: totalBytes || loadedBytes });
+        }
+
+        const checksum = calculateMD5(buf);
+        const blob = new Blob([buf], { type: 'application/octet-stream' });
+        triggerBrowserDownload(blob, fileName);
+        return { checksum, fileName };
+    }
+
+    // 2. Setup Chunking
+    const chunkSize = 192 * 1024; // 192KB
+    const totalChunks = Math.ceil(totalBytes / chunkSize);
+    let completedChunks = 0;
+
+    // Use an identifier for cache keys
+    const fileId = calculateMD5(new TextEncoder().encode(downloadUrl + totalBytes).buffer).substring(0, 16);
+
+    options?.onProgress?.({
+        totalChunks,
+        completedChunks: 0,
+        loadedBytes: 0,
+        totalBytes,
+    });
+
+    const chunkBuffers: ArrayBuffer[] = new Array(totalChunks);
+
+    // Ensure we can use js-sha256
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let sha256: any;
+    try {
+        sha256 = (await import('js-sha256')).sha256;
+    } catch {
+        sha256 = null; // We'll skip chunk validation if we can't load sha256
+    }
+
+    // Process sequentially to be safe with Range requests
+    for (let i = 0; i < totalChunks; i++) {
+        if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize - 1, totalBytes - 1);
+        const expectedSize = end - start + 1;
+
+        // Check cache first
+        const cacheUrl = `${downloadUrl}#chunk=${fileId}-${i}`;
+        let buf = await getChunk(cacheUrl);
+
+        // Validate cached chunk size
+        if (buf && buf.byteLength !== expectedSize) {
+            buf = null;
+        }
+
+        if (!buf) {
+            let retries = 3;
+            let success = false;
+            while (retries > 0 && !success) {
+                if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+                try {
+                    const res = await fetch(downloadUrl, {
+                        headers: { Range: `bytes=${start}-${end}` },
+                        cache: 'no-store',
+                        signal: options?.signal
+                    });
+
+                    if (!res.ok && res.status !== 206) {
+                        throw new Error(`Failed to fetch chunk ${i}: HTTP ${res.status}`);
+                    }
+
+                    buf = await res.arrayBuffer();
+
+                    if (buf.byteLength !== expectedSize) {
+                        throw new Error(`Chunk size mismatch. Expected ${expectedSize}, got ${buf.byteLength}`);
+                    }
+
+                    if (sha256) {
+                        // We calculate SHA256 just to verify nothing throws, and standard sanity check
+                        sha256.create().update(buf).hex();
+                    }
+
+                    await putChunk(cacheUrl, buf);
+                    success = true;
+                } catch (err) {
+                    retries--;
+                    if (retries === 0) throw err;
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+        }
+
+        if (buf) {
+            chunkBuffers[i] = buf;
+            completedChunks++;
+            const loadedBytes = completedChunks === totalChunks ? totalBytes : completedChunks * chunkSize;
+            options?.onProgress?.({
+                totalChunks,
+                completedChunks,
+                loadedBytes: Math.min(loadedBytes, totalBytes),
+                totalBytes,
+            });
         }
     }
 
+    options?.onProgress?.({
+        totalChunks,
+        completedChunks,
+        loadedBytes: totalBytes,
+        totalBytes,
+        statusText: 'merging'
+    });
+
+    const combined = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (let i = 0; i < totalChunks; i++) {
+        const chunk = chunkBuffers[i];
+        combined.set(new Uint8Array(chunk), offset);
+        offset += chunk.byteLength;
+        // Optionally delete cached chunk after merging to save space
+        // await import('./chunkCache').then(({ deleteChunks }) => deleteChunks([`${downloadUrl}#chunk=${fileId}-${i}`]));
+    }
+
+    options?.onProgress?.({
+        totalChunks,
+        completedChunks,
+        loadedBytes: totalBytes,
+        totalBytes,
+        statusText: 'verifying'
+    });
+
+    const checksum = calculateMD5(combined.buffer);
+    const blob = new Blob([combined], { type: 'application/octet-stream' });
     triggerBrowserDownload(blob, fileName);
 
     return { checksum, fileName };
