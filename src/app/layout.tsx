@@ -21,6 +21,7 @@ export default function RootLayout({
             <head>
                 <link rel="manifest" href="/manifest.json" />
                 <meta name="theme-color" content="#ffffff" />
+                <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `!function(){try{var d=document.documentElement;d.setAttribute('data-os',/Win/i.test(navigator.userAgent)?'win':'other');}catch(e){}}();` }} />
             </head>
             <body suppressHydrationWarning>
                 <LanguageProvider>

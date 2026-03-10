@@ -1,18 +1,9 @@
-import * as SparkMD5Lib from 'spark-md5';
 import { getChunk, putChunk, clearOldCaches } from './chunkCache';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const SparkMD5 = (SparkMD5Lib as any).default || SparkMD5Lib;
-
-function calculateMD5(buffer: ArrayBuffer): string {
-    const spark = new SparkMD5.ArrayBuffer();
-    const chunkSize = 10 * 1024 * 1024; // 10MB
-    const uint8 = new Uint8Array(buffer);
-    for (let i = 0; i < uint8.length; i += chunkSize) {
-        const end = Math.min(i + chunkSize, uint8.length);
-        spark.append(buffer.slice(i, end));
-    }
-    return spark.end();
+async function calculateHash(buffer: ArrayBuffer): Promise<string> {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export interface CipxChunkManifest {
@@ -145,7 +136,7 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
         statusText: 'verifying'
     });
 
-    const checksum = calculateMD5(combined.buffer);
+    const checksum = await calculateHash(combined.buffer);
 
     const blob = new Blob([combined], { type: 'application/octet-stream' });
     const fileName = manifest.fileName || options?.fallbackFileName || 'plugin.cipx';
@@ -225,7 +216,7 @@ export async function downloadFileUrl(downloadUrl: string, options?: DownloadOpt
             options?.onProgress?.({ totalChunks: 1, completedChunks: 1, loadedBytes, totalBytes: totalBytes || loadedBytes });
         }
 
-        const checksum = calculateMD5(buf);
+        const checksum = await calculateHash(buf);
         const blob = new Blob([buf], { type: 'application/octet-stream' });
         triggerBrowserDownload(blob, fileName);
         return { checksum, fileName };
@@ -237,7 +228,7 @@ export async function downloadFileUrl(downloadUrl: string, options?: DownloadOpt
     let completedChunks = 0;
 
     // Use an identifier for cache keys
-    const fileId = calculateMD5(new TextEncoder().encode(downloadUrl + totalBytes).buffer).substring(0, 16);
+    const fileId = (await calculateHash(new TextEncoder().encode(downloadUrl + totalBytes).buffer)).substring(0, 16);
 
     options?.onProgress?.({
         totalChunks,
@@ -247,15 +238,6 @@ export async function downloadFileUrl(downloadUrl: string, options?: DownloadOpt
     });
 
     const chunkBuffers: ArrayBuffer[] = new Array(totalChunks);
-
-    // Ensure we can use js-sha256
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let sha256: any;
-    try {
-        sha256 = (await import('js-sha256')).sha256;
-    } catch {
-        sha256 = null; // We'll skip chunk validation if we can't load sha256
-    }
 
     // Process sequentially to be safe with Range requests
     for (let i = 0; i < totalChunks; i++) {
@@ -296,10 +278,8 @@ export async function downloadFileUrl(downloadUrl: string, options?: DownloadOpt
                         throw new Error(`Chunk size mismatch. Expected ${expectedSize}, got ${buf.byteLength}`);
                     }
 
-                    if (sha256) {
-                        // We calculate SHA256 just to verify nothing throws, and standard sanity check
-                        sha256.create().update(buf).hex();
-                    }
+                    // We calculate SHA-256 just to verify nothing throws, and standard sanity check
+                    await calculateHash(buf);
 
                     await putChunk(cacheUrl, buf);
                     success = true;
@@ -350,7 +330,7 @@ export async function downloadFileUrl(downloadUrl: string, options?: DownloadOpt
         statusText: 'verifying'
     });
 
-    const checksum = calculateMD5(combined.buffer);
+    const checksum = await calculateHash(combined.buffer);
     const blob = new Blob([combined], { type: 'application/octet-stream' });
     triggerBrowserDownload(blob, fileName);
 

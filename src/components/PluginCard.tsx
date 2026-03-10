@@ -139,17 +139,19 @@ const useStyles = makeStyles({
         color: tokens.colorNeutralForeground3
     },
     hoverInfo: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
+        display: 'grid',
+        gridTemplateRows: '0fr',
+        transition: 'grid-template-rows 0.3s var(--ease-snappy), margin-top 0.3s var(--ease-snappy), padding 0.3s var(--ease-snappy)',
+        marginTop: 0,
         boxSizing: 'border-box',
-        overflow: 'hidden',
         borderRadius: tokens.borderRadiusLarge,
         backgroundColor: tokens.colorNeutralBackground1,
-        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        border: `1px solid transparent`,
+        boxShadow: 'none',
+        pointerEvents: 'none',
     },
     hoverInfoHidden: {
-        maxHeight: '0',
+        gridTemplateRows: '0fr',
         padding: '0 10px 0 10px',
         marginTop: '0px',
         opacity: 0,
@@ -158,10 +160,8 @@ const useStyles = makeStyles({
         pointerEvents: 'none',
     },
     hoverInfoVisible: {
-        maxHeight: '260px',
-        padding: '10px 10px 8px 10px',
-        marginTop: '8px',
-        opacity: 1,
+        gridTemplateRows: '1fr',
+        marginTop: '12px',
         border: `1px solid ${tokens.colorNeutralStroke2}`,
         boxShadow: tokens.shadow8,
         pointerEvents: 'auto',
@@ -284,6 +284,7 @@ export interface PluginData {
         Author: string;
         Url?: string;
         Readme?: string;
+        VersionTime?: string; // Added VersionTime to Manifest
     };
     RealIconPath?: string;
 }
@@ -293,11 +294,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
     const t = useTranslations('Index');
     const router = useRouter();
     const { ref, inView } = useInView({ rootMargin: '350px 0px', triggerOnce: true });
-    const [isWin, setIsWin] = useState(true);
-    useEffect(() => {
-        const timer = setTimeout(() => setIsWin(/Win/i.test(navigator.userAgent)), 0);
-        return () => clearTimeout(timer);
-    }, []);
+
     const fileSizeStr = plugin.FileSize ? formatBytes(plugin.FileSize) : null;
     const [isVisible, setIsVisible] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -308,6 +305,8 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
     const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
     const [isTouchExpanded, setIsTouchExpanded] = useState(false);
+
+    const timeStr = plugin.Manifest.VersionTime ? new Date(plugin.Manifest.VersionTime).toLocaleDateString() : '';
 
     useEffect(() => {
         if (inView) {
@@ -549,18 +548,64 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                             }
                         />
                         <div className={mergeClasses(styles.hoverInfo, isHovering ? styles.hoverInfoVisible : styles.hoverInfoHidden)}>
-                            <p className={styles.hoverDescription}>
-                                {Manifest.Description || "No description provided."}
-                            </p>
-                            <div className={styles.hoverIdRow}>
-                                <span className={styles.hoverId} title={Manifest.Id}>{Manifest.Id}</span>
-                                <Button
-                                    appearance="subtle"
-                                    icon={copied ? <CheckmarkRegular /> : <CopyRegular />}
-                                    className={styles.copyButton}
-                                    onClick={handleCopyId}
-                                    title={copied ? t('copied') : t('copyId')}
-                                />
+                            <div style={{ overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <p className={styles.hoverDescription}>
+                                        {Manifest.Description || "No description provided."}
+                                    </p>
+                                    <div className={styles.hoverIdRow}>
+                                        <span className={styles.hoverId} title={Manifest.Id}>{Manifest.Id}</span>
+                                        <Button
+                                            appearance="subtle"
+                                            icon={copied ? <CheckmarkRegular /> : <CopyRegular />}
+                                            className={styles.copyButton}
+                                            onClick={handleCopyId}
+                                            title={copied ? t('copied') : t('copyId')}
+                                        />
+                                    </div>
+                                    {/* Version info on hover */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                                        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                                            {t('version')}: {plugin.Manifest?.Version}
+                                        </Text>
+                                        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                                            {timeStr}
+                                        </Text>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                        <>
+                                            <Button
+                                                appearance="primary"
+                                                size="small"
+                                                className={mergeClasses(styles.actionButton, styles.installButton, 'show-on-win')}
+                                                style={{ flex: 1 }}
+                                                icon={<OpenRegular />}
+                                                onClick={handleInstallClick}
+                                            >
+                                                {t('install')}
+                                            </Button>
+                                            <Button
+                                                appearance="outline"
+                                                size="small"
+                                                className={mergeClasses(styles.actionButton, styles.downloadButton, 'show-on-win')}
+                                                icon={<ArrowDownloadRegular />}
+                                                onClick={handleDownloadClick}
+                                            >
+                                                {t('download')}
+                                            </Button>
+                                        </>
+                                        <Button
+                                            appearance="outline"
+                                            size="small"
+                                            className={mergeClasses(styles.actionButton, styles.downloadButton, 'hide-on-win')}
+                                            style={{ flex: 1 }}
+                                            icon={<ArrowDownloadRegular />}
+                                            onClick={handleDownloadClick}
+                                        >
+                                            {fileSizeStr || t('download')}
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
@@ -574,42 +619,6 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                     <StarRegular fontSize={16} />
                                     <Text size={200}>{StarsCount}</Text>
                                 </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                {isWin ? (
-                                    <>
-                                        <Button
-                                            appearance="primary"
-                                            size="small"
-                                            className={mergeClasses(styles.actionButton, styles.installButton)}
-                                            style={{ flex: 1 }}
-                                            icon={<OpenRegular />}
-                                            onClick={handleInstallClick}
-                                        >
-                                            {t('install')}
-                                        </Button>
-                                        <Button
-                                            appearance="outline"
-                                            size="small"
-                                            className={mergeClasses(styles.actionButton, styles.downloadButton)}
-                                            icon={<ArrowDownloadRegular />}
-                                            onClick={handleDownloadClick}
-                                        >
-                                            {t('download')}
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <Button
-                                        appearance="outline"
-                                        size="small"
-                                        className={mergeClasses(styles.actionButton, styles.downloadButton)}
-                                        style={{ flex: 1 }}
-                                        icon={<ArrowDownloadRegular />}
-                                        onClick={handleDownloadClick}
-                                    >
-                                        {fileSizeStr || t('download')}
-                                    </Button>
-                                )}
                             </div>
                         </CardFooter>
                     </Card>

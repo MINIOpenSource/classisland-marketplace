@@ -38,11 +38,11 @@ export function ChecksumDialog({
                     <DialogContent>
                         {info?.expectedChecksum ? (
                             <>
-                                <Text>{t('checksumLocalDesc') || 'Local File MD5 Checksum:'}</Text>
+                                <Text>{t('checksumLocalDesc') || 'Local File Checksum (SHA-256/MD5):'}</Text>
                                 <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium, marginTop: '8px', marginBottom: '12px' }}>
                                     {info.checksum}
                                 </div>
-                                <Text>{t('checksumRemoteDesc') || 'Expected Original MD5 Checksum:'}</Text>
+                                <Text>{t('checksumRemoteDesc') || 'Expected Original Checksum:'}</Text>
                                 <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium, marginTop: '8px', marginBottom: '12px' }}>
                                     {info.expectedChecksum}
                                 </div>
@@ -52,7 +52,7 @@ export function ChecksumDialog({
                             </>
                         ) : (
                             <>
-                                <Text>{t('checksumDesc') || 'Here is the MD5 checksum of the downloaded file:'}</Text>
+                                <Text>{t('checksumDesc') || 'Here is the checksum of the downloaded file:'}</Text>
                                 <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', padding: '8px', backgroundColor: tokens.colorNeutralBackground2, borderRadius: tokens.borderRadiusMedium, marginTop: '12px', marginBottom: '12px' }}>
                                     {info?.checksum}
                                 </div>

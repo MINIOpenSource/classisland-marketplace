@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cipx-assets-0f673ab';
+const CACHE_NAME = 'cipx-assets-1.3.4';
 
 self.addEventListener('install', () => {
     self.skipWaiting();
@@ -39,7 +39,11 @@ self.addEventListener('fetch', (event) => {
                         cache.put(event.request, networkResponse.clone());
                     }
                     return networkResponse;
-                }).catch(() => cachedResponse);
+                }).catch(() => {
+                    // if cache is empty AND network fails, we must return a viable Response Object
+                    // otherwise the Service Worker throws a Fatal Error destroying the site
+                    return cachedResponse ? cachedResponse : new Response('Offline', { status: 503 });
+                });
 
                 return cachedResponse || fetchPromise;
             })

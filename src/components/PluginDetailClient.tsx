@@ -18,7 +18,7 @@ import {
 } from '@fluentui/react-components';
 import { ArrowDownloadRegular, StarRegular, ArrowLeftRegular, OpenRegular, CopyRegular, CheckmarkRegular, CodeRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import type { ReactNode } from 'react';
 import { PluginData } from './PluginCard';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -239,7 +239,7 @@ const useStyles = makeStyles({
     },
 });
 
-export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] }: { plugin: PluginData, readmeContent: string, versionHistory?: VersionEntry[] }) {
+export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: { plugin: PluginData, readmeNode: ReactNode, versionHistory?: VersionEntry[] }) {
     const styles = useStyles();
     const t = useTranslations('Index');
     const router = useRouter();
@@ -263,11 +263,6 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
         return () => setShowBack(false);
     }, [setShowBack]);
 
-    const [isWin, setIsWin] = useState(true);
-    useEffect(() => {
-        const timer = setTimeout(() => setIsWin(/Win/i.test(navigator.userAgent)), 0);
-        return () => clearTimeout(timer);
-    }, []);
     const [copied, setCopied] = useState(false);
     const [embedCopied, setEmbedCopied] = useState(false);
     const [embedType, setEmbedType] = useState<'svg' | 'iframe'>('svg');
@@ -316,7 +311,6 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
         : undefined;
 
     const handleInstall = () => {
-        if (!isWin) return;
         window.location.href = `classisland://app/plugin/install?id=${Manifest.Id}`;
     };
 
@@ -387,12 +381,19 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                     actions: (
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <Button
-                                appearance={isWin ? "primary" : "secondary"}
-                                disabled={!isWin}
+                                appearance="primary"
                                 icon={<OpenRegular />}
                                 onClick={handleInstall}
-                                title={!isWin ? t('requiresWindows') : t('install')}
-                                className={styles.actionButton}
+                                title={t('install')}
+                                className={mergeClasses(styles.actionButton, 'show-on-win')}
+                                style={{ minWidth: '38px', padding: 0 }}
+                            />
+                            <Button
+                                appearance="secondary"
+                                disabled
+                                icon={<OpenRegular />}
+                                title={t('requiresWindows')}
+                                className={mergeClasses(styles.actionButton, 'hide-on-win')}
                                 style={{ minWidth: '38px', padding: 0 }}
                             />
                             <Button
@@ -434,7 +435,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
 
         updatePluginInfo();
         return () => window.removeEventListener('resize', handleResize);
-    }, [headerCardInView, Manifest.Name, Manifest.Url, iconSrc, isWin, t, styles.actionButton]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [headerCardInView, Manifest.Name, Manifest.Url, iconSrc, t, styles.actionButton]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         return () => setPluginInfo(null);
@@ -502,13 +503,21 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                 <div className={styles.actionButtonsContainer}>
                     <div className={styles.actionButtonsRow}>
                         <Button
-                            appearance={isWin ? "primary" : "secondary"}
-                            disabled={!isWin}
+                            appearance="primary"
                             size="large"
                             icon={<OpenRegular />}
                             onClick={handleInstall}
-                            title={!isWin ? t('requiresWindows') : ""}
-                            className={styles.responsiveButton}
+                            className={mergeClasses(styles.responsiveButton, 'show-on-win')}
+                        >
+                            <span className={styles.buttonText}>{t('install')}</span>
+                        </Button>
+                        <Button
+                            appearance="secondary"
+                            disabled
+                            size="large"
+                            icon={<OpenRegular />}
+                            title={t('requiresWindows')}
+                            className={mergeClasses(styles.responsiveButton, 'hide-on-win')}
                         >
                             <span className={styles.buttonText}>{t('install')}</span>
                         </Button>
@@ -551,7 +560,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
                             </Button>
                         </Tooltip>
                     </div>
-                    {!isWin && <Text size={200} style={{ color: tokens.colorNeutralForeground4 }}>{t('requiresWindows')}</Text>}
+                    <Text size={200} className="hide-on-win" style={{ color: tokens.colorNeutralForeground4 }}>{t('requiresWindows')}</Text>
                 </div>
             </div>
 
@@ -560,16 +569,7 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
             )}
 
             <div className={styles.readme} style={{ padding: 0, overflow: 'hidden' }} onClick={handleLinkClick}>
-                {readmeContent ? (
-                    <MarkdownPreview
-                        source={readmeContent}
-                        style={{ padding: '40px', backgroundColor: 'transparent' }}
-                    />
-                ) : (
-                    <div style={{ padding: '40px' }}>
-                        <Text size={400}>{Manifest.Description || "No readme available."}</Text>
-                    </div>
-                )}
+                {readmeNode}
             </div>
 
             <Dialog open={confirmLink !== null} onOpenChange={(_, data) => !data.open && setConfirmLink(null)}>
