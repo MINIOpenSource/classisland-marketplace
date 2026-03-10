@@ -128,11 +128,11 @@ export default function DownloadsPage() {
             const manifest = await manifestRes.json();
 
             const chunks = manifest.chunks as string[];
+            const totalBytes = manifest.totalSize || (chunks.length * 192 * 1024);
             let loadedBytes = 0;
-            const totalBytes = chunks.length * 192 * 1024;
             const startTime = performance.now();
 
-            const poolLimit = chunks.length;
+            const poolLimit = 6;
             let index = 0;
             const executePool = async () => {
                 while (index < chunks.length) {
@@ -153,7 +153,7 @@ export default function DownloadsPage() {
             const endTime = performance.now();
             const durationSeconds = (endTime - startTime) / 1000;
             setTestTime(durationSeconds.toFixed(2));
-            setTestSpeed(formatBytes(totalBytes / durationSeconds) + '/s');
+            setTestSpeed(formatBytes(loadedBytes / durationSeconds) + '/s');
         } catch (err) {
             console.error('Speed test failed:', err);
             setTestTime('Error');
