@@ -308,14 +308,12 @@ export function PluginDetailClient({ plugin, readmeContent, versionHistory = [] 
         }
     };
 
-    const { Manifest, DownloadCount, StarsCount, RealIconPath, FileSize, CachedIconFile } = plugin;
+    const { Manifest, DownloadCount, StarsCount, FileSize, CachedIconFile } = plugin;
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
 
     const iconSrc = CachedIconFile
         ? `/icons/${CachedIconFile}`
-        : RealIconPath
-            ? RealIconPath
-            : undefined;
+        : undefined;
 
     const handleInstall = () => {
         if (!isWin) return;

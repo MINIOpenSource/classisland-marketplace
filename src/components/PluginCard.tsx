@@ -320,15 +320,13 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
 
 
 
-    const { Manifest, DownloadCount, StarsCount, RealIconPath, CachedIconFile, CachedIconFileMin } = plugin;
+    const { Manifest, DownloadCount, StarsCount, CachedIconFile, CachedIconFileMin } = plugin;
 
     const iconSrc = CachedIconFileMin
         ? `/icons/${CachedIconFileMin}`
         : CachedIconFile
             ? `/icons/${CachedIconFile}`
-            : RealIconPath
-                ? RealIconPath
-                : undefined;
+            : undefined;
 
     const handleInstallClick = (e: React.MouseEvent) => {
         e.preventDefault();

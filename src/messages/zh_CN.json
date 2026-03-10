@@ -90,7 +90,7 @@
         "githubCommitRecord": "GitHub Commit记录",
         "loadingCommits": "正在加载从 GitHub 获取的提交记录...",
         "loadCommitsError": "加载提交记录失败",
-        "speedTest": "多线程网络评估模块",
+        "speedTest": "下载速度测试",
         "testing": "正在拉取探针..."
     },
     "NotFound": {
