@@ -45,6 +45,9 @@ next-env.d.ts
 /.plugin-cache/
 /public/*
 !/public/favicon.ico
+!/public/manifest.json
+!/public/sw.js
+!/public/images/
 
 # auto-generated
 /src/data/commits.json

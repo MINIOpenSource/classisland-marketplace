@@ -141,7 +141,7 @@ async function downloadBuffer(urlStr: string): Promise<Buffer> {
 /**
  * Download and cache a plugin icon. Returns the local filename (pluginId + ext) and a 64x64 compressed version.
  */
-async function cacheIcon(pluginId: string, iconUrl: string): Promise<{ filename: string, minFilename: string } | null> {
+async function cacheIcon(pluginId: string, iconUrl: string): Promise<{ filename: string, minFilename: string | null } | null> {
     ensureDir(ICON_DIR);
 
     // Determine file extension from URL
@@ -153,10 +153,18 @@ async function cacheIcon(pluginId: string, iconUrl: string): Promise<{ filename:
     const minFilename = `${safeId}.min${ext}`;
     const filePath = path.join(ICON_DIR, filename);
     const minFilePath = path.join(ICON_DIR, minFilename);
+    const minWebpFilename = minFilename.replace(ext, '.webp');
+    const minWebpFilePath = path.join(ICON_DIR, minWebpFilename);
 
     // If already cached, skip download
-    if (fs.existsSync(filePath) && fs.existsSync(minFilePath)) {
-        return { filename, minFilename };
+    if (fs.existsSync(filePath)) {
+        if (fs.existsSync(minWebpFilePath)) {
+            return { filename, minFilename: minWebpFilename };
+        } else if (fs.existsSync(minFilePath)) {
+            return { filename, minFilename };
+        } else if (ext === '.ico' || ext === '.svg') {
+            return { filename, minFilename: null };
+        }
     }
 
     try {
@@ -167,19 +175,24 @@ async function cacheIcon(pluginId: string, iconUrl: string): Promise<{ filename:
         // Save original
         fs.writeFileSync(filePath, buf);
 
+        let finalMinFilename: string | null = minFilename;
+
         // Save compressed 64x64 version
         try {
-            const minBuf = await sharp(buf).resize(64, 64).toBuffer();
-            fs.writeFileSync(minFilePath, minBuf);
+            const minBuf = await sharp(buf).resize(64, 64).webp({ quality: 80 }).toBuffer();
+            finalMinFilename = minFilename.replace(ext, '.webp');
+
+            // if we changed the extension
+            const actualMinPath = path.join(ICON_DIR, finalMinFilename);
+            fs.writeFileSync(actualMinPath, minBuf);
         } catch (e) {
-            console.warn(`Failed to generate 64x64 icon for ${pluginId}:`, e);
-            // Fallback to original if compression fails
-            fs.writeFileSync(minFilePath, buf);
+            console.warn(`Failed to generate 64x64 icon for ${pluginId}:`, e instanceof Error ? e.message : e);
+            finalMinFilename = null;
         }
 
-        return { filename, minFilename };
+        return { filename, minFilename: finalMinFilename };
     } catch (e) {
-        console.warn(`Failed to cache icon for ${pluginId}:`, e);
+        console.warn(`Failed to cache icon for ${pluginId}:`, e instanceof Error ? e.message : e);
         return null;
     }
 }
@@ -429,6 +442,10 @@ export async function getPluginIndex() {
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             chunk.forEach((plugin: any) => {
+                if (!plugin.RealIconPath && plugin.Manifest?.Author) {
+                    plugin.RealIconPath = `https://github.com/${plugin.Manifest.Author}.png`;
+                }
+
                 if (plugin.RealIconPath) {
                     plugin.RealIconPath = plugin.RealIconPath.replace('{root}', root);
                 }
@@ -442,10 +459,12 @@ export async function getPluginIndex() {
                 // Cache icon
                 if (plugin.RealIconPath && plugin.Manifest?.Id) {
                     cachePromises.push(
-                        cacheIcon(plugin.Manifest.Id, plugin.RealIconPath).then(cached => {
+                        cacheIcon(plugin.Manifest.Id, plugin.RealIconPath).then((cached) => {
                             if (cached) {
                                 plugin.CachedIconFile = cached.filename;
-                                plugin.CachedIconFileMin = cached.minFilename;
+                                if (cached.minFilename) {
+                                    plugin.CachedIconFileMin = cached.minFilename;
+                                }
                             }
                         })
                     );
