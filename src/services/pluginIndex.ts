@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import https from 'https';
 import http from 'http';
 import sharp from 'sharp';
+import decodeIco from 'decode-ico';
 
 const CACHE_DIR = path.join(process.cwd(), '.plugin-cache');
 const CACHE_JSON = path.join(CACHE_DIR, 'index.json');
@@ -179,7 +180,58 @@ async function cacheIcon(pluginId: string, iconUrl: string): Promise<{ filename:
 
         // Save compressed 64x64 version
         try {
-            const minBuf = await sharp(buf).resize(64, 64).webp({ quality: 80 }).toBuffer();
+            let imageBuf = buf;
+            let finalWidth = 64;
+            let finalHeight = 64;
+
+            if (ext.toLowerCase() === '.ico') {
+                try {
+                    const images = decodeIco(buf);
+                    // Choose the largest image, or 64x64 if available
+                    let bestImg = images[0];
+                    for (const img of images) {
+                        if (img.width === 64) {
+                            bestImg = img;
+                            break;
+                        }
+                        if (img.width > (bestImg?.width || 0) && bestImg?.width !== 64) {
+                            bestImg = img;
+                        }
+                    }
+                    if (bestImg) {
+                        if (bestImg.type === 'png') {
+                            imageBuf = Buffer.from(bestImg.data);
+                            finalMinFilename = minFilename.replace(ext, '.webp');
+                            const minBuf = await sharp(imageBuf).resize(64, 64).webp({ quality: 80 }).toBuffer();
+                            const actualMinPath = path.join(ICON_DIR, finalMinFilename);
+                            fs.writeFileSync(actualMinPath, minBuf);
+                            return { filename, minFilename: finalMinFilename };
+                        } else {
+                            // BMP format raw pixel mapping for sharp
+                            imageBuf = Buffer.from(bestImg.data);
+                            finalWidth = bestImg.width;
+                            finalHeight = bestImg.height;
+
+                            finalMinFilename = minFilename.replace(ext, '.webp');
+                            const minBuf = await sharp(imageBuf, {
+                                raw: {
+                                    width: finalWidth,
+                                    height: finalHeight,
+                                    channels: 4
+                                }
+                            }).resize(64, 64).webp({ quality: 80 }).toBuffer();
+                            const actualMinPath = path.join(ICON_DIR, finalMinFilename);
+                            fs.writeFileSync(actualMinPath, minBuf);
+                            return { filename, minFilename: finalMinFilename };
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Failed to decode ICO for ${pluginId}:`, e instanceof Error ? e.message : e);
+                    // Fall back to returning uncompressed original if decoding fails
+                }
+            }
+
+            const minBuf = await sharp(imageBuf).resize(64, 64).webp({ quality: 80 }).toBuffer();
             finalMinFilename = minFilename.replace(ext, '.webp');
 
             // if we changed the extension
