@@ -2,14 +2,14 @@
 import { execSync } from 'child_process';
 
 const isLimitedCipx = process.env.LIMIT_HISTORICAL_CIPX === '1';
-const envName = isLimitedCipx ? 'Limited Historical Cipx Environment' :
-    process.env.VERCEL ? 'Vercel' :
-        process.env.CF_PAGES ? 'Cloudflare Pages' :
-            process.env.GITHUB_PAGES ? 'GitHub Pages' : 'Local / Unknown';
+const platformName = process.env.VERCEL ? 'Vercel' :
+    process.env.CF_PAGES ? 'Cloudflare Pages' :
+        process.env.GITHUB_PAGES ? 'GitHub Pages' : 'Local / Unknown';
+
 console.log(`=========================================`);
 console.log(`[ClassIsland Marketplace Build]`);
-console.log(`Environment detected: ${envName}`);
-console.log(`All Env Keys:`, Object.keys(process.env).join(', '));
+console.log(`- Platform:            ${platformName}`);
+console.log(`- Env detected:        ${isLimitedCipx ? 'Historical Limit Enabled' : 'Full Version Cache'}`);
 console.log(`=========================================`);
 
 
