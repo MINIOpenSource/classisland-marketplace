@@ -748,14 +748,14 @@ export async function getPluginVersionHistory(
             const body = release.body || '';
             const localDescriptionUrl = cacheHistoricalDescription(pluginId, resolvedTag, body);
 
-            const isEdgeOne = process.env.TENCENTCLOUD_PAGES === '1' || process.env.TENCENTCLOUD_REGION !== undefined;
+            const isLimitedCipx = process.env.LIMIT_HISTORICAL_CIPX === '1';
 
             const cipxDownloadUrl = cipxAsset?.browser_download_url || undefined;
             let cipxChunkManifestUrl: string | undefined;
             let cipxSize = cipxAsset?.size || undefined;
             let md5Checksum: string | undefined;
 
-            if (cipxAsset?.browser_download_url && !isEdgeOne) {
+            if (cipxAsset?.browser_download_url && !isLimitedCipx) {
                 const cached = await cacheHistoricalCipx(pluginId, resolvedTag, cipxAsset.browser_download_url);
                 if (cached.chunkManifestUrl) {
                     cipxChunkManifestUrl = cached.chunkManifestUrl;

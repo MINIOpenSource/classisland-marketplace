@@ -112,10 +112,9 @@ export function Footer() {
                         Deployed on GitHub Pages
                     </Text>
                 )}
-                {process.env.NEXT_PUBLIC_IS_EDGEONE === 'true' && (
+                {process.env.NEXT_PUBLIC_LIMIT_HISTORICAL_CIPX === 'true' && (
                     <Text size={200} className={styles.info}>
-                        Deployed on EdgeOne Pages
-                        {process.env.NEXT_PUBLIC_EDGEONE_REGION && ` (${process.env.NEXT_PUBLIC_EDGEONE_REGION})`}
+                        Historical Plugin Version Cache Limited
                     </Text>
                 )}
             </Link>

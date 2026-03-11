@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 import { execSync } from 'child_process';
 
-const isEdgeOne = process.env.TENCENTCLOUD_PAGES === '1' || process.env.TENCENTCLOUD_REGION !== undefined;
-const envName = isEdgeOne ? 'EdgeOne Pages' :
+const isLimitedCipx = process.env.LIMIT_HISTORICAL_CIPX === '1';
+const envName = isLimitedCipx ? 'Limited Historical Cipx Environment' :
     process.env.VERCEL ? 'Vercel' :
         process.env.CF_PAGES ? 'Cloudflare Pages' :
             process.env.GITHUB_PAGES ? 'GitHub Pages' : 'Local / Unknown';
@@ -49,8 +49,7 @@ const nextConfig = {
         CF_PAGES_URL: process.env.CF_PAGES_URL || '',
         VERCEL_URL: process.env.VERCEL_URL || '',
         GITHUB_PAGES_URL: process.env.GITHUB_PAGES_URL || '',
-        NEXT_PUBLIC_IS_EDGEONE: (process.env.TENCENTCLOUD_PAGES === '1' || process.env.TENCENTCLOUD_REGION !== undefined) ? 'true' : 'false',
-        NEXT_PUBLIC_EDGEONE_REGION: process.env.TENCENTCLOUD_REGION || '',
+        NEXT_PUBLIC_LIMIT_HISTORICAL_CIPX: process.env.LIMIT_HISTORICAL_CIPX === '1' ? 'true' : 'false',
     },
     experimental: {
         viewTransition: true

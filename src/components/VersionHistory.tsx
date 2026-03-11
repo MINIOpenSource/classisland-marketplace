@@ -425,15 +425,15 @@ export function VersionHistory({
                                                 let manifestUrl = entry.cipxChunkManifestUrl;
                                                 const fileUrl = entry.cipxDownloadUrl;
 
-                                                const isEdgeOne = process.env.NEXT_PUBLIC_IS_EDGEONE === 'true';
+                                                const isLimitedCipx = process.env.NEXT_PUBLIC_LIMIT_HISTORICAL_CIPX === 'true';
                                                 const altNode = localStorage.getItem('historical_download_node');
 
                                                 if (manifestUrl && altNode) {
                                                     manifestUrl = manifestUrl.startsWith('http') ? manifestUrl : new URL(manifestUrl, altNode).toString();
                                                 }
 
-                                                if (isEdgeOne && !altNode) {
-                                                    alert(t('edgeOneHistoryWarning') || 'EdgeOne Pages does not provide historical cipx files natively. Please switch nodes to download.');
+                                                if (isLimitedCipx && !altNode) {
+                                                    alert(t('limitedHistoryWarning') || 'This node does not provide historical cipx files natively. Please switch nodes to download.');
                                                     return;
                                                 }
 

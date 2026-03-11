@@ -63,9 +63,9 @@ export function NodeSpeedTest() {
     const [dismissed, setDismissed] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
 
-    // For EdgeOne specifically
-    const [showEdgeOnePrompt, setShowEdgeOnePrompt] = useState(false);
-    const [edgeOneAlternativeNode, setEdgeOneAlternativeNode] = useState<{ id: string, name: string, url: string } | null>(null);
+    // For explicit limited history environments
+    const [showLimitedPrompt, setShowLimitedPrompt] = useState(false);
+    const [limitedAlternativeNode, setLimitedAlternativeNode] = useState<{ id: string, name: string, url: string } | null>(null);
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -74,7 +74,7 @@ export function NodeSpeedTest() {
 
         const runSpeedTest = async () => {
             const currentOrigin = window.location.origin;
-            const isEdgeOne = process.env.NEXT_PUBLIC_IS_EDGEONE === 'true';
+            const isLimitedCipx = process.env.NEXT_PUBLIC_LIMIT_HISTORICAL_CIPX === 'true';
 
             let currentPing = Infinity;
             const results: { id: string, name: string, url: string, ping: number }[] = [];
@@ -92,7 +92,7 @@ export function NodeSpeedTest() {
 
             await Promise.all(ENDPOINTS.map(async (ep) => {
                 const p = await ping(ep.url);
-                if (currentOrigin.includes(ep.url.replace('https://', '')) || (isEdgeOne && ep.id === 'edgeone')) {
+                if (currentOrigin.includes(ep.url.replace('https://', ''))) {
                     currentPing = Math.min(p, currentPing); // It's possible we match but have real ping
                 } else {
                     if (p < Infinity) {
@@ -110,9 +110,9 @@ export function NodeSpeedTest() {
 
             if (results.length > 0) {
                 const best = results[0];
-                if (isEdgeOne && !localStorage.getItem('historical_download_node')) {
-                    setEdgeOneAlternativeNode(best);
-                    setShowEdgeOnePrompt(true);
+                if (isLimitedCipx && !localStorage.getItem('historical_download_node')) {
+                    setLimitedAlternativeNode(best);
+                    setShowLimitedPrompt(true);
                     setDismissed(false);
                 }
 
@@ -133,7 +133,7 @@ export function NodeSpeedTest() {
         return () => clearTimeout(t);
     }, []);
 
-    if (dismissed || (!fastestNode && !showEdgeOnePrompt)) return null;
+    if (dismissed || (!fastestNode && !showLimitedPrompt)) return null;
 
     const handleSwitch = () => {
         if (fastestNode) {
@@ -147,27 +147,27 @@ export function NodeSpeedTest() {
         setDismissed(true);
     };
 
-    const handleEdgeOneAccept = () => {
-        if (edgeOneAlternativeNode) {
-            localStorage.setItem('historical_download_node', edgeOneAlternativeNode.url);
+    const handleLimitedAccept = () => {
+        if (limitedAlternativeNode) {
+            localStorage.setItem('historical_download_node', limitedAlternativeNode.url);
         }
         setDismissed(true);
     };
 
-    if (showEdgeOnePrompt && edgeOneAlternativeNode && !fastestNode) {
+    if (showLimitedPrompt && limitedAlternativeNode && !fastestNode) {
         return (
             <div className={isMobile ? styles.containerMobile : styles.containerDesktop}>
                 <Card appearance="filled" className={styles.card}>
                     <div className={styles.header}>
-                        <Text weight="bold">EdgeOne 历史版本下载</Text>
+                        <Text weight="bold">历史版本下载代理</Text>
                         <Button appearance="subtle" icon={<DismissRegular />} onClick={() => setDismissed(true)} />
                     </div>
                     <Text size={200}>
-                        当前节点不提供历史版本 cipx 下载。是否自动使用最近的 {edgeOneAlternativeNode.name} 节点下载？（无需跳转）
+                        当前节点不缓存历史版本 cipx 下载。是否自动使用最近的 {limitedAlternativeNode.name} 节点下载？（无需跳转）
                     </Text>
                     <div className={styles.actions}>
                         <Button appearance="secondary" onClick={() => setDismissed(true)}>取消</Button>
-                        <Button appearance="primary" onClick={handleEdgeOneAccept}>确定</Button>
+                        <Button appearance="primary" onClick={handleLimitedAccept}>确定</Button>
                     </div>
                 </Card>
             </div>
