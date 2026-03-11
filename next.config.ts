@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 import { execSync } from 'child_process';
 
+const isEdgeOne = process.env.TENCENTCLOUD_PAGES === '1' || process.env.TENCENTCLOUD_REGION !== undefined;
+const envName = isEdgeOne ? 'EdgeOne Pages' :
+    process.env.VERCEL ? 'Vercel' :
+        process.env.CF_PAGES ? 'Cloudflare Pages' :
+            process.env.GITHUB_PAGES ? 'GitHub Pages' : 'Local / Unknown';
+console.log(`=========================================`);
+console.log(`[ClassIsland Marketplace Build]`);
+console.log(`Environment detected: ${envName}`);
+console.log(`=========================================`);
+
+
 let buildHash = 'unknown';
 try {
     const defaultHash = process.env.GITHUB_SHA || process.env.CF_PAGES_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA;
