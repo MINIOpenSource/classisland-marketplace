@@ -563,16 +563,36 @@ export async function getPluginById(id: string) {
     if (!plugin) return null;
 
     if (plugin.DownloadUrl) {
-        try {
-            const headRes = await fetch(plugin.DownloadUrl, { method: 'HEAD', next: { revalidate: 3600 } } as RequestInit);
-            if (headRes.ok) {
-                const length = headRes.headers.get('content-length');
-                if (length) {
-                    plugin.FileSize = parseInt(length, 10);
-                }
+        const FILE_SIZE_CACHE = path.join(CACHE_DIR, 'file-sizes.json');
+        const cacheKey = `${plugin.Manifest.Id}@${plugin.Manifest?.Version}`;
+        let cachedSizes: Record<string, number> = {};
+
+        if (fs.existsSync(FILE_SIZE_CACHE)) {
+            try {
+                cachedSizes = JSON.parse(fs.readFileSync(FILE_SIZE_CACHE, 'utf-8'));
+            } catch {
+                // Ignore parsing errors for cache
             }
-        } catch {
-            console.warn("Failed to fetch file size for", plugin.Manifest.Id);
+        }
+
+        if (cachedSizes[cacheKey] !== undefined) {
+            plugin.FileSize = cachedSizes[cacheKey];
+        } else {
+            try {
+                const headRes = await fetch(plugin.DownloadUrl, { method: 'HEAD', next: { revalidate: 3600 } } as RequestInit);
+                if (headRes.ok) {
+                    const length = headRes.headers.get('content-length');
+                    if (length) {
+                        const size = parseInt(length, 10);
+                        plugin.FileSize = size;
+                        cachedSizes[cacheKey] = size;
+                        ensureDir(CACHE_DIR);
+                        fs.writeFileSync(FILE_SIZE_CACHE, JSON.stringify(cachedSizes, null, 2), 'utf-8');
+                    }
+                }
+            } catch {
+                console.warn("Failed to fetch file size for", plugin.Manifest.Id);
+            }
         }
     }
     return plugin;
@@ -728,12 +748,14 @@ export async function getPluginVersionHistory(
             const body = release.body || '';
             const localDescriptionUrl = cacheHistoricalDescription(pluginId, resolvedTag, body);
 
-            const cipxDownloadUrl = cipxAsset?.browser_download_url || undefined;
+            const isEdgeOne = process.env.TENCENTCLOUD_PAGES === '1' || process.env.TENCENTCLOUD_REGION !== undefined;
+
+            const cipxDownloadUrl = isEdgeOne ? undefined : (cipxAsset?.browser_download_url || undefined);
             let cipxChunkManifestUrl: string | undefined;
             let cipxSize = cipxAsset?.size || undefined;
             let md5Checksum: string | undefined;
 
-            if (cipxAsset?.browser_download_url) {
+            if (cipxAsset?.browser_download_url && !isEdgeOne) {
                 const cached = await cacheHistoricalCipx(pluginId, resolvedTag, cipxAsset.browser_download_url);
                 if (cached.chunkManifestUrl) {
                     cipxChunkManifestUrl = cached.chunkManifestUrl;

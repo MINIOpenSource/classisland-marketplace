@@ -37,6 +37,8 @@ const nextConfig = {
         CF_PAGES_URL: process.env.CF_PAGES_URL || '',
         VERCEL_URL: process.env.VERCEL_URL || '',
         GITHUB_PAGES_URL: process.env.GITHUB_PAGES_URL || '',
+        NEXT_PUBLIC_IS_EDGEONE: (process.env.TENCENTCLOUD_PAGES === '1' || process.env.TENCENTCLOUD_REGION !== undefined) ? 'true' : 'false',
+        NEXT_PUBLIC_EDGEONE_REGION: process.env.TENCENTCLOUD_REGION || '',
     },
     experimental: {
         viewTransition: true

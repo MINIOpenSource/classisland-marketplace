@@ -422,8 +422,20 @@ export function VersionHistory({
                                             disabled={tasks.some(t => t.version === entry.version && t.status === 'downloading')}
                                             onClick={() => {
                                                 const key = entry.tagName || entry.version;
-                                                const manifestUrl = entry.cipxChunkManifestUrl;
+                                                let manifestUrl = entry.cipxChunkManifestUrl;
                                                 const fileUrl = entry.cipxDownloadUrl;
+
+                                                const isEdgeOne = process.env.NEXT_PUBLIC_IS_EDGEONE === 'true';
+                                                const altNode = localStorage.getItem('historical_download_node');
+
+                                                if (manifestUrl && altNode) {
+                                                    manifestUrl = manifestUrl.startsWith('http') ? manifestUrl : new URL(manifestUrl, altNode).toString();
+                                                }
+
+                                                if (isEdgeOne && !altNode) {
+                                                    alert(t('edgeOneHistoryWarning') || 'EdgeOne Pages does not provide historical cipx files natively. Please switch nodes to download.');
+                                                    return;
+                                                }
 
                                                 if (manifestUrl) {
                                                     addTask?.(key, key, entry.version, true, manifestUrl);

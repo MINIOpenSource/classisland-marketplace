@@ -1,5 +1,6 @@
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LanguageProvider } from '@/components/LanguageProvider';
+import { NodeSpeedTest } from '@/components/NodeSpeedTest';
 import '@/app/globals.css';
 import type { Metadata } from 'next';
 
@@ -26,6 +27,7 @@ export default function RootLayout({
             <body suppressHydrationWarning>
                 <LanguageProvider>
                     <ThemeProvider>
+                        <NodeSpeedTest />
                         {children}
                     </ThemeProvider>
                 </LanguageProvider>
