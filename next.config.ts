@@ -1,5 +1,20 @@
 /** @type {import('next').NextConfig} */
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+
+// Ensure data and speedtest files are generated before the build starts 
+// (especially for platforms like Cloudflare Pages that run `npx next build` directly)
+try {
+    if (!fs.existsSync(path.join(process.cwd(), 'src/data/commits.json'))) {
+        execSync('node scripts/fetch-commits.mjs', { stdio: 'inherit' });
+    }
+    if (!fs.existsSync(path.join(process.cwd(), 'public/speedtest'))) {
+        execSync('node scripts/generate-speedtest.mjs', { stdio: 'inherit' });
+    }
+} catch (e) {
+    console.warn('Failed to generate pre-build files:', e);
+}
 
 const isLimitedCipx = process.env.LIMIT_HISTORICAL_CIPX === '1';
 const platformName = process.env.VERCEL ? 'Vercel' :
