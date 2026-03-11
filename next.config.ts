@@ -9,6 +9,7 @@ const envName = isEdgeOne ? 'EdgeOne Pages' :
 console.log(`=========================================`);
 console.log(`[ClassIsland Marketplace Build]`);
 console.log(`Environment detected: ${envName}`);
+console.log(`All Env Keys:`, Object.keys(process.env).join(', '));
 console.log(`=========================================`);
 
 

@@ -750,7 +750,7 @@ export async function getPluginVersionHistory(
 
             const isEdgeOne = process.env.TENCENTCLOUD_PAGES === '1' || process.env.TENCENTCLOUD_REGION !== undefined;
 
-            const cipxDownloadUrl = isEdgeOne ? undefined : (cipxAsset?.browser_download_url || undefined);
+            const cipxDownloadUrl = cipxAsset?.browser_download_url || undefined;
             let cipxChunkManifestUrl: string | undefined;
             let cipxSize = cipxAsset?.size || undefined;
             let md5Checksum: string | undefined;
