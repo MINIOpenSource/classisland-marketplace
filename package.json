@@ -1,6 +1,6 @@
 {
   "name": "classisland-marketplace",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "scripts": {
     "dev": "node scripts/fetch-commits.mjs && node scripts/generate-speedtest.mjs && next dev",

@@ -17,7 +17,7 @@ const README_IMAGE_DIR = path.join(process.cwd(), 'public', 'readme-images');
 const README_DIR = path.join(process.cwd(), 'public', 'readmes');
 const VERSION_DESC_DIR = path.join(process.cwd(), 'public', 'version-descriptions');
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-const CIPX_CHUNK_SIZE = 384 * 1024; // 384KB
+const CIPX_CHUNK_SIZE = 192 * 1024; // 192KB
 
 interface CipxChunkManifest {
     fileName: string;
@@ -25,6 +25,7 @@ interface CipxChunkManifest {
     chunkSize: number;
     chunks: string[];
     md5?: string;
+    chunkMd5s?: string[];
 }
 
 function ensureDir(dir: string) {
@@ -63,16 +64,17 @@ function splitFileToChunks(
     ensureDir(chunkDir);
     const buf = fs.readFileSync(filePath);
     const chunks: string[] = [];
-    let index = 0;
+    const chunkMd5s: string[] = [];
 
     for (let offset = 0; offset < buf.length; offset += CIPX_CHUNK_SIZE) {
         const end = Math.min(offset + CIPX_CHUNK_SIZE, buf.length);
         const chunkBuf = buf.subarray(offset, end);
-        const chunkFile = `${String(index).padStart(4, '0')}.part`;
+        const chunkHash = crypto.createHash('md5').update(chunkBuf).digest('hex');
+        const chunkFile = `${chunkHash}.part`;
         const chunkPath = path.join(chunkDir, chunkFile);
         fs.writeFileSync(chunkPath, chunkBuf);
         chunks.push(`/cipx-chunks/${outputSubDir}/${chunkFile}`);
-        index += 1;
+        chunkMd5s.push(chunkHash);
     }
 
     const manifest: CipxChunkManifest = {
@@ -80,6 +82,7 @@ function splitFileToChunks(
         totalSize: buf.length,
         chunkSize: CIPX_CHUNK_SIZE,
         chunks,
+        chunkMd5s,
         md5: crypto.createHash('md5').update(buf).digest('hex'),
     };
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');

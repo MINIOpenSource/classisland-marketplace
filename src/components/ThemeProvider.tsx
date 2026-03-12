@@ -36,8 +36,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [renderer] = useState(() => createDOMRenderer());
     const [isDark, setIsDark] = useState(false);
     const [mounted, setMounted] = useState(false);
-    const [isAnimating, setIsAnimating] = useState(false);
-    const [animContext, setAnimContext] = useState<{ x: number, y: number, isDarkNow: boolean } | null>(null);
 
     const t = useTranslations('Index');
 
@@ -63,21 +61,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [confirmLightModeOpen, setConfirmLightModeOpen] = useState(false);
     const confirmSwitchRef = useRef<{ e?: React.MouseEvent } | null>(null);
 
-    const performThemeSwitch = useCallback((next: boolean, e?: React.MouseEvent) => {
-        if (e && typeof document !== 'undefined') {
-            const x = e.clientX;
-            const y = e.clientY;
-            setAnimContext({ x, y, isDarkNow: !next });
-            setIsAnimating(true);
+    const performThemeSwitch = useCallback((next: boolean) => {
+        if (typeof document !== 'undefined') {
             document.documentElement.classList.toggle('dark', next);
-            setTimeout(() => {
-                localStorage.setItem('theme', next ? 'dark' : 'light');
-                setIsAnimating(false);
-                setAnimContext(null);
-            }, 500);
-        } else {
             localStorage.setItem('theme', next ? 'dark' : 'light');
-            document.documentElement.classList.toggle('dark', next);
         }
         setIsDark(next);
     }, []);
@@ -90,7 +77,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
                 setConfirmLightModeOpen(true);
                 return prev;
             }
-            performThemeSwitch(next, e);
+            performThemeSwitch(next);
             return next;
         });
     }, [performThemeSwitch]);
@@ -98,7 +85,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const handleConfirmLightMode = () => {
         setConfirmLightModeOpen(false);
         if (confirmSwitchRef.current) {
-            performThemeSwitch(false, confirmSwitchRef.current.e);
+            performThemeSwitch(false);
             confirmSwitchRef.current = null;
         }
     };
@@ -121,50 +108,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
                         style={{
                             minHeight: '100vh',
                             backgroundColor: isDark ? webDarkTheme.colorNeutralBackground2 : webLightTheme.colorNeutralBackground2,
-                            transition: isAnimating ? 'none' : 'background-color 0.5s ease',
+                            transition: 'background-color 0.5s ease',
                             position: 'relative',
-                            overflow: isAnimating ? 'hidden' : 'visible'
+                            overflow: 'visible'
                         }}
                     >
-                        {isAnimating && animContext && (
-                            <div
-                                style={{
-                                    position: 'fixed',
-                                    top: 0,
-                                    left: 0,
-                                    width: '100vw',
-                                    height: '100vh',
-                                    pointerEvents: 'none',
-                                    zIndex: 99999,
-                                    overflow: 'hidden'
-                                }}
-                            >
-                                <div style={{
-                                    position: 'absolute',
-                                    top: animContext.y,
-                                    left: animContext.x,
-                                    width: '10px',
-                                    height: '10px',
-                                    borderRadius: '50%',
-                                    backgroundColor: isDark ? webDarkTheme.colorNeutralBackground2 : webLightTheme.colorNeutralBackground2,
-                                    transform: 'translate(-50%, -50%)',
-                                    animation: 'themeExpand 0.5s ease-out forwards',
-                                }} />
-                            </div>
-                        )}
-                        <style dangerouslySetInnerHTML={{
-                            __html: `
-                            @keyframes themeExpand {
-                                0% {
-                                    transform: translate(-50%, -50%) scale(0);
-                                    opacity: 0.8;
-                                }
-                                100% {
-                                    transform: translate(-50%, -50%) scale(300);
-                                    opacity: 1;
-                                }
-                            }
-                        `}} />
                         {mounted ? (
                             <DownloadProvider>
                                 {children}

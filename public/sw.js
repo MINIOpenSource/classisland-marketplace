@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cipx-assets-1.4.0';
+const CACHE_NAME = 'cipx-assets-1.4.1';
 
 self.addEventListener('install', () => {
     self.skipWaiting();

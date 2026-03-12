@@ -1,9 +1,8 @@
 import { getChunk, putChunk, clearOldCaches } from './chunkCache';
 
 async function calculateHash(buffer: ArrayBuffer): Promise<string> {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const SparkMD5 = (await import('spark-md5')).default;
+    return SparkMD5.ArrayBuffer.hash(buffer);
 }
 
 export interface CipxChunkManifest {
@@ -12,6 +11,7 @@ export interface CipxChunkManifest {
     chunkSize: number;
     chunks: string[];
     md5?: string;
+    chunkMd5s?: string[];
 }
 
 interface DownloadProgress {
@@ -90,6 +90,14 @@ export async function downloadCipxByManifest(manifestUrl: string, options?: Down
                     throw new Error(`Failed to fetch chunk: HTTP ${res.status}`);
                 }
                 buf = await res.arrayBuffer();
+
+                if (manifest.chunkMd5s && manifest.chunkMd5s[idx]) {
+                    const hash = await calculateHash(buf);
+                    if (hash !== manifest.chunkMd5s[idx]) {
+                        throw new Error(`Chunk ${idx} hash mismatch. Expected ${manifest.chunkMd5s[idx]}, got ${hash}`);
+                    }
+                }
+
                 await putChunk(url, buf);
             }
 
