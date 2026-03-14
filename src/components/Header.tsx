@@ -171,6 +171,7 @@ export function Header() {
                         onClick={() => router.back()}
                         style={{ minWidth: '32px', padding: 0 }}
                         title={t('back') || 'Back'}
+                            aria-label={t('back') || 'Back'}
                     />
                 </div>
 
@@ -237,6 +238,7 @@ export function Header() {
                         }
                         appearance="subtle"
                         title={t('downloads') || 'Downloads'}
+                        aria-label={t('downloads') || 'Downloads'}
                         className={styles.actionButton}
                         onClick={() => router.push('/downloads')}
                     />
@@ -254,6 +256,7 @@ export function Header() {
                                 }
                                 appearance="subtle"
                                 title={t('downloads') || 'Downloads'}
+                                aria-label={t('downloads') || 'Downloads'}
                                 className={styles.actionButton}
                             />
                         </PopoverTrigger>
@@ -277,14 +280,14 @@ export function Header() {
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                                                     {task.status === 'downloading' ? (
-                                                        <Button icon={<PauseRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => pauseTask(task.id)} style={{ minWidth: '24px', padding: '0 4px' }} title={t('pause') || 'Pause'} />
+                                                        <Button icon={<PauseRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => pauseTask(task.id)} style={{ minWidth: '24px', padding: '0 4px' }} title={t('pause') || 'Pause'} aria-label={t('pause') || 'Pause'} />
                                                     ) : task.status === 'paused' ? (
-                                                        <Button icon={<PlayRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => resumeTask(task.id)} style={{ minWidth: '24px', padding: '0 4px' }} title={t('resume') || 'Resume'} />
+                                                        <Button icon={<PlayRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => resumeTask(task.id)} style={{ minWidth: '24px', padding: '0 4px' }} title={t('resume') || 'Resume'} aria-label={t('resume') || 'Resume'} />
                                                     ) : null}
                                                     <Button icon={<DismissRegular fontSize={16} />} appearance="subtle" size="small" onClick={() => {
                                                         if (task.status === 'downloading' || task.status === 'paused') cancelTask(task.id);
                                                         else removeTask(task.id);
-                                                    }} style={{ minWidth: '24px', padding: '0 4px' }} title={(task.status === 'downloading' || task.status === 'paused') ? (t('cancel') || 'Cancel') : (t('delete') || 'Delete')} />
+                                                    }} style={{ minWidth: '24px', padding: '0 4px' }} title={(task.status === 'downloading' || task.status === 'paused') ? (t('cancel') || 'Cancel') : (t('delete') || 'Delete')} aria-label={(task.status === 'downloading' || task.status === 'paused') ? (t('cancel') || 'Cancel') : (t('delete') || 'Delete')} />
                                                 </div>
                                             </div>
                                             {(task.status === 'downloading' || task.status === 'paused') && (
@@ -321,11 +324,12 @@ export function Header() {
                     appearance="subtle"
                     onClick={toggleTheme}
                     title={isDark ? 'Light mode' : 'Dark mode'}
+                    aria-label={isDark ? 'Light mode' : 'Dark mode'}
                     className={styles.actionButton}
                 />
                 <Menu>
                     <MenuTrigger disableButtonEnhancement>
-                        <Button icon={<TranslateRegular />} appearance="subtle" className={styles.actionButton} />
+                        <Button icon={<TranslateRegular />} appearance="subtle" className={styles.actionButton} title="Change language" aria-label="Change language" />
                     </MenuTrigger>
                     <MenuPopover>
                         <MenuList>
