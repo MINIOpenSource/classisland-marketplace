@@ -560,6 +560,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                     className={styles.copyButton}
                                     onClick={handleCopyId}
                                     title={copied ? t('copied') : t('copyId')}
+                                    aria-label={copied ? t('copied') : t('copyId')}
                                 />
                             </div>
                         </div>
