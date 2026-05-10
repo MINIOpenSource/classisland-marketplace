@@ -14,7 +14,8 @@ import {
     DialogBody,
     DialogContent,
     DialogActions,
-    Button
+    Button,
+    Toaster
 } from '@fluentui/react-components';
 import { useServerInsertedHTML } from 'next/navigation';
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
@@ -116,6 +117,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
                         {mounted ? (
                             <DownloadProvider>
                                 {children}
+                                <Toaster toasterId="global-toaster" position="bottom-end" />
                             </DownloadProvider>
                         ) : <div style={{ visibility: 'hidden' }}>{children}</div>}
 

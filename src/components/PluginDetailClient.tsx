@@ -14,9 +14,13 @@ import {
     DialogBody,
     DialogActions,
     DialogContent,
-    mergeClasses
+    mergeClasses,
+    useToastController,
+    Toast,
+    ToastTitle,
+    ToastBody
 } from '@fluentui/react-components';
-import { ArrowDownloadRegular, StarRegular, ArrowLeftRegular, OpenRegular, CopyRegular, CheckmarkRegular, CodeRegular } from '@fluentui/react-icons';
+import { ArrowDownloadRegular, StarRegular, ArrowLeftRegular, OpenRegular, CopyRegular, CheckmarkRegular, CodeRegular, ShareRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { PluginData } from './PluginCard';
@@ -244,6 +248,7 @@ export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: 
     const t = useTranslations('Index');
     const router = useRouter();
     const { setShowBack, setPluginInfo } = useTopBar();
+    const { dispatchToast } = useToastController('global-toaster');
 
     const { ref: headerCardRef, inView: headerCardInView } = useInView({
         initialInView: true,
@@ -314,7 +319,9 @@ export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: 
         window.location.href = `classisland://app/plugin/install?id=${Manifest.Id}`;
     };
 
+    const [isDownloading, setIsDownloading] = useState(false);
     const handleDownload = () => {
+        setIsDownloading(true);
         if (plugin.LocalDownloadChunkManifest) {
             if (hasCache) {
                 // Trigger download directly using the manifest logic down in cipxDownloader
@@ -322,16 +329,18 @@ export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: 
                     downloadCipxByManifest(plugin.LocalDownloadChunkManifest!, {
                         fallbackFileName: `${Manifest.Id}.cipx`,
                         onProgress: () => { }
-                    }).catch(console.error);
+                    }).then(() => setIsDownloading(false)).catch((e) => { console.error(e); setIsDownloading(false); });
                 });
             } else {
                 addTask(Manifest.Id, Manifest.Name, Manifest.Version, true, plugin.LocalDownloadChunkManifest);
+                setIsDownloading(false);
             }
             return;
         }
         if (resolvedDownloadUrl) {
             addTask(Manifest.Id, Manifest.Name, Manifest.Version, false, resolvedDownloadUrl);
         }
+        setIsDownloading(false);
     };
 
     const handleOpenGitHub = () => {
@@ -343,8 +352,28 @@ export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: 
     const handleCopyId = () => {
         navigator.clipboard.writeText(Manifest.Id).then(() => {
             setCopied(true);
+            dispatchToast(
+                <Toast>
+                    <ToastTitle>Copied</ToastTitle>
+                    <ToastBody>Plugin ID has been copied to clipboard.</ToastBody>
+                </Toast>,
+                { intent: 'success' }
+            );
             setTimeout(() => setCopied(false), 2000);
         });
+    };
+
+    const handleCopyLink = () => {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+            dispatchToast(
+                <Toast>
+                    <ToastTitle>Copied</ToastTitle>
+                    <ToastBody>Plugin link has been copied to clipboard.</ToastBody>
+                </Toast>,
+                { intent: 'success' }
+            );
+        }).catch(() => { });
     };
 
     const escapedEmbedAlt = Manifest.Name.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -397,12 +426,14 @@ export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: 
                                 style={{ minWidth: '38px', padding: 0 }}
                             />
                             <Button
+                                aria-label={hasCache ? t('save') : t('download')}
                                 appearance="outline"
-                                icon={<ArrowDownloadRegular />}
+                                icon={isDownloading ? <CheckmarkRegular className="animate-pulse" /> : <ArrowDownloadRegular />}
                                 onClick={handleDownload}
                                 title={hasCache ? t('save') : t('download')}
                                 className={styles.actionButton}
                                 style={{ minWidth: '38px', padding: 0 }}
+                                disabled={isDownloading}
                             />
                             {Manifest.Url && (
                                 <Button
@@ -487,6 +518,16 @@ export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: 
                                     style={{ minWidth: 'auto', padding: '2px', height: 'auto' }}
                                 />
                             </Tooltip>
+                            <Tooltip content="Copy Plugin Link" relationship="label">
+                                <Button
+                                    appearance="subtle"
+                                    size="small"
+                                    icon={<ShareRegular />}
+                                    onClick={handleCopyLink}
+                                    className={styles.actionButton}
+                                    style={{ minWidth: 'auto', padding: '2px', height: 'auto', marginLeft: '4px' }}
+                                />
+                            </Tooltip>
                         </div>
                         <div className={styles.statsRow}>
                             <div className={styles.stat} title={t('downloads')}>
@@ -525,11 +566,12 @@ export function PluginDetailClient({ plugin, readmeNode, versionHistory = [] }: 
                             <Button
                                 appearance="outline"
                                 size="large"
-                                icon={<ArrowDownloadRegular />}
+                                icon={isDownloading ? <CheckmarkRegular className="animate-pulse" /> : <ArrowDownloadRegular />}
                                 onClick={handleDownload}
                                 className={styles.responsiveButton}
+                                disabled={isDownloading}
                             >
-                                <span className={styles.buttonText}>{hasCache ? t('save') : t('download')}</span>
+                                <span className={styles.buttonText}>{isDownloading ? 'Processing...' : hasCache ? t('save') : t('download')}</span>
                             </Button>
                         </Tooltip>
                         {Manifest.Url && (

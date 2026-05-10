@@ -1,6 +1,6 @@
 {
   "name": "classisland-marketplace",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "scripts": {
     "dev": "node scripts/fetch-commits.mjs && node scripts/generate-speedtest.mjs && next dev",
@@ -16,6 +16,7 @@
     "@vercel/og": "^0.11.1",
     "adm-zip": "^0.5.16",
     "decode-ico": "^0.4.1",
+    "framer-motion": "^12.38.0",
     "js-sha256": "^0.11.1",
     "next": "16.1.6",
     "next-intl": "^4.8.3",
@@ -23,6 +24,8 @@
     "react-dom": "19.2.3",
     "react-intersection-observer": "^10.0.3",
     "react-markdown": "^10.1.0",
+    "react-medium-image-zoom": "^5.4.5",
+    "react-parallax-tilt": "^1.7.327",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",

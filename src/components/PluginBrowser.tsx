@@ -2,9 +2,9 @@
 
 import { PluginCard, PluginData } from '@/components/PluginCard';
 import { PluginGrid } from '@/components/PluginGrid';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { Button, makeStyles, tokens, Text, Input } from '@fluentui/react-components';
-import { SearchRegular, ArrowUpRegular, ArrowDownRegular } from '@fluentui/react-icons';
+import { SearchRegular, ArrowUpRegular, ArrowDownRegular, DismissRegular, DocumentSearchRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 
 const useStyles = makeStyles({
@@ -57,6 +57,21 @@ const useStyles = makeStyles({
     sortButton: {
         borderRadius: tokens.borderRadiusMedium,
         transition: 'all 0.15s ease-in-out',
+    },
+    emptyState: {
+        textAlign: 'center',
+        padding: '80px 20px',
+        color: tokens.colorNeutralForeground3,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '16px',
+        animation: 'route-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both',
+    },
+    emptyStateIcon: {
+        fontSize: '48px',
+        color: tokens.colorNeutralForeground4,
     }
 });
 
@@ -66,7 +81,20 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
     const [sortMethod, setSortMethod] = useState<'name' | 'downloads' | 'stars'>('downloads');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [search, setSearch] = useState('');
-    const animationVersion = `${sortMethod}::${sortOrder}::${search.trim().toLowerCase() || 'all'}`;
+    const deferredSearch = useDeferredValue(search);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const animationVersion = `${sortMethod}::${sortOrder}::${deferredSearch.trim().toLowerCase() || 'all'}`;
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const handleSortChange = (method: 'name' | 'downloads' | 'stars') => {
         if (sortMethod === method) {
@@ -78,7 +106,7 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
     };
 
     const filteredPlugins = useMemo(() => {
-        const keyword = search.trim().toLowerCase();
+        const keyword = deferredSearch.trim().toLowerCase();
         if (!keyword) {
             return plugins;
         }
@@ -90,7 +118,7 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
             const description = plugin.Manifest.Description?.toLowerCase() || '';
             return name.includes(keyword) || author.includes(keyword) || id.includes(keyword) || description.includes(keyword);
         });
-    }, [plugins, search]);
+    }, [plugins, deferredSearch]);
 
     const sortedPlugins = useMemo(() => {
         const copy = [...filteredPlugins];
@@ -113,10 +141,19 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
             <div className={styles.toolbarShell}>
                 <div className={styles.toolbar}>
                     <Input
+                        ref={searchInputRef}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder={t('searchPlaceholder')}
                         contentBefore={<SearchRegular />}
+                        contentAfter={
+                            search ? (
+                                <DismissRegular
+                                    style={{ cursor: 'pointer', color: tokens.colorNeutralForeground3 }}
+                                    onClick={() => { setSearch(''); searchInputRef.current?.focus(); }}
+                                />
+                            ) : null
+                        }
                         className={styles.searchInput}
                     />
                     <div className={styles.toolbarRight}>
@@ -157,11 +194,20 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
                 </div>
             </div>
 
-            <PluginGrid>
-                {sortedPlugins.map((plugin, index) => (
-                    <PluginCard key={`${plugin.Manifest.Id}-${animationVersion}`} plugin={plugin} index={index} />
-                ))}
-            </PluginGrid>
+            {sortedPlugins.length > 0 ? (
+                <PluginGrid>
+                    {sortedPlugins.map((plugin, index) => (
+                        <PluginCard key={`${plugin.Manifest.Id}-${animationVersion}`} plugin={plugin} index={index} />
+                    ))}
+                </PluginGrid>
+            ) : (
+                <div className={styles.emptyState}>
+                    <DocumentSearchRegular className={styles.emptyStateIcon} />
+                    <Text size={500} weight="semibold">No plugins found</Text>
+                    <Text size={300}>We couldn&apos;t find anything matching &quot;{search}&quot;. Try another search term.</Text>
+                    <Button onClick={() => { setSearch(''); searchInputRef.current?.focus(); }}>Clear search</Button>
+                </div>
+            )}
 
             {sortedPlugins.length > 0 && (
                 <div style={{ textAlign: 'center', margin: '48px 0 24px 0', color: tokens.colorNeutralForeground3 }}>
