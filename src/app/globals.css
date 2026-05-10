@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7fb;
+  --background: #f0f4f8; /* Lighter, very pale blue/grey-blue */
   --foreground: #161b22;
   --surface-1: #ffffff;
-  --surface-2: #f7f9fc;
+  --surface-2: #e8f0fe; /* Soft highlight for pale blue */
   --accent-1: #1f6feb;
-  --accent-1-soft: rgba(31, 111, 235, 0.16);
+  --accent-1-soft: rgba(31, 111, 235, 0.08); /* Muted the accent glow */
   --shadow-soft: 0 14px 36px rgba(15, 23, 42, 0.08);
   --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -23,12 +23,12 @@ html:not([data-os="other"]) .hide-on-win { display: none !important; }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f141c;
+    --background: #0d1117; /* GitHub-like dark, clean */
     --foreground: #edf2f7;
     --surface-1: #161d27;
     --surface-2: #111826;
     --accent-1: #5aa2ff;
-    --accent-1-soft: rgba(90, 162, 255, 0.2);
+    --accent-1-soft: rgba(90, 162, 255, 0.1);
     --shadow-soft: 0 20px 44px rgba(0, 0, 0, 0.34);
   }
 }
@@ -36,11 +36,12 @@ html:not([data-os="other"]) .hide-on-win { display: none !important; }
 body {
   background:
     radial-gradient(900px 500px at 8% -10%, var(--accent-1-soft), transparent 60%),
-    radial-gradient(900px 500px at 95% 0%, rgba(34, 197, 94, 0.09), transparent 60%),
     linear-gradient(180deg, var(--surface-2), var(--background) 30%, var(--background));
+  background-color: var(--background);
   color: var(--foreground);
   font-family: "Segoe UI Variable Text", "Avenir Next", "Noto Sans", "Helvetica Neue", sans-serif;
   text-rendering: optimizeLegibility;
+  transition: background-color 300ms ease, color 300ms ease, background 300ms ease;
 }
 
 * {
@@ -52,27 +53,21 @@ button {
   transition: transform 180ms var(--ease-snappy), box-shadow 180ms var(--ease-snappy), filter 180ms var(--ease-snappy);
 }
 
+/* Deprecated manual route animation as we now use framer-motion via .route-transition-framer */
 .route-transition {
-  animation: route-enter 320ms var(--ease-snappy) both;
+  /* left for backward compatibility if any component still uses it directly */
 }
 
-@keyframes route-enter {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.995);
-    filter: blur(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-    filter: none;
-  }
+/* Accessibility: enhance focus outlines globally */
+*:focus-visible {
+  outline: 2px solid var(--accent-1) !important;
+  outline-offset: 2px !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
 
   .route-transition,
+  .route-transition-framer,
   a,
   button {
     transition: none !important;

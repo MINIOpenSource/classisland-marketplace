@@ -2,10 +2,7 @@ import { getPluginById, getReadmeContent, getPluginIndex, getPluginVersionHistor
 import { PluginDetailClient } from '@/components/PluginDetailClient';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize from 'rehype-sanitize';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 
 export async function generateStaticParams() {
     const data = await getPluginIndex();
@@ -49,21 +46,8 @@ export default async function PluginPage({ params }: { params: Promise<{ id: str
         }
     }
 
-    // Render markdown to React nodes on the server side!
-    const readmeNode = readmeContent ? (
-        <div style={{ padding: '40px', backgroundColor: 'transparent' }} className="wmde-markdown">
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw, rehypeSanitize]}
-            >
-                {readmeContent}
-            </ReactMarkdown>
-        </div>
-    ) : (
-        <div style={{ padding: '40px' }}>
-            <p style={{ fontSize: '14px', margin: 0 }}>{plugin.Manifest?.Description || "No readme available."}</p>
-        </div>
-    );
+    // Render markdown using the new client component that supports zoom and code copy
+    const readmeNode = <MarkdownRenderer content={readmeContent} pluginDescription={plugin.Manifest?.Description} />;
 
     // Fetch version history from GitHub releases
     const versionHistory = await getPluginVersionHistory(

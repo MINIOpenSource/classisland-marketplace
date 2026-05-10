@@ -9,9 +9,13 @@ import {
     Button,
     makeStyles,
     mergeClasses,
-    tokens
+    tokens,
+    useToastController,
+    Toast,
+    ToastTitle,
+    ToastBody
 } from '@fluentui/react-components';
-import { ArrowDownloadRegular, StarRegular, OpenRegular, CopyRegular, CheckmarkRegular } from '@fluentui/react-icons';
+import { ArrowDownloadRegular, StarRegular, OpenRegular, CopyRegular, CheckmarkRegular, ShareRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useInView } from 'react-intersection-observer';
@@ -19,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
 import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
+import Tilt from 'react-parallax-tilt';
 
 export function formatBytes(bytes?: number, decimals = 2) {
     if (bytes === undefined || bytes === null || !+bytes) return '';
@@ -70,7 +75,7 @@ const useStyles = makeStyles({
         border: `1px solid ${tokens.colorNeutralStroke2}`,
         overflow: 'hidden',
         transformOrigin: 'center center',
-        transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease',
+        transition: 'transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, border-color 0.15s ease',
         boxShadow: tokens.shadow4,
         '&::after': {
             content: '""',
@@ -92,8 +97,7 @@ const useStyles = makeStyles({
             zIndex: 1,
         },
         '&:hover': {
-            transform: 'translateY(-4px) scale(1.1)',
-            boxShadow: tokens.shadow16,
+            boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.2), 0 10px 20px -5px rgba(0, 0, 0, 0.1)',
             border: `1px solid ${tokens.colorBrandStroke1}`,
             '&::before': {
                 opacity: 1,
@@ -256,12 +260,12 @@ const useStyles = makeStyles({
         pointerEvents: 'auto',
     },
     cardTouchExpanded: {
-        transform: 'translateY(-4px) scale(1.03) !important',
-        boxShadow: `${tokens.shadow16} !important`,
+        transform: 'scale(1.03) !important',
+        boxShadow: `0 20px 40px -10px rgba(0, 0, 0, 0.2), 0 10px 20px -5px rgba(0, 0, 0, 0.1) !important`,
         border: `1px solid ${tokens.colorBrandStroke1} !important`,
         '@media (max-width: 700px)': {
             position: 'relative',
-            transform: 'translateY(-4px)',
+            transform: 'scale(1.02) !important',
         }
     }
 });
@@ -308,6 +312,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
     const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
     const [isTouchExpanded, setIsTouchExpanded] = useState(false);
+    const { dispatchToast } = useToastController('global-toaster');
 
     useEffect(() => {
         if (inView) {
@@ -328,35 +333,47 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
             ? `/icons/${CachedIconFile}`
             : undefined;
 
+    // Detect if this is a "new" or "updated" plugin using a mock heuristic for now
+    // (since static index doesn't have exact timestamps, we mark high stars + recent index version as a proxy or just simulate a badge for UX demo)
+    const isNewOrUpdated = Manifest.Version.startsWith('1.') && StarsCount > 10;
+
     const handleInstallClick = (e: React.MouseEvent) => {
         e.preventDefault();
         window.location.href = `classisland://app/plugin/install?id=${Manifest.Id}`;
     };
 
+    const [isDownloading, setIsDownloading] = useState(false);
     const handleDownloadClick = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        setIsDownloading(true);
         if (plugin.LocalDownloadChunkManifest) {
             downloadCipxByManifest(plugin.LocalDownloadChunkManifest, { fallbackFileName: `${Manifest.Id}.cipx` })
-                .then(res => setChecksumInfo(res))
+                .then(res => { setChecksumInfo(res); setIsDownloading(false); })
                 .catch((err) => {
                     console.error('Failed to download from manifest:', err);
                     if (resolvedDownloadUrl) {
                         downloadFileUrl(resolvedDownloadUrl, { fallbackFileName: `${Manifest.Id}.cipx` })
-                            .then(res => setChecksumInfo(res))
+                            .then(res => { setChecksumInfo(res); setIsDownloading(false); })
                             .catch(() => {
                                 window.location.href = resolvedDownloadUrl;
+                                setIsDownloading(false);
                             });
+                    } else {
+                        setIsDownloading(false);
                     }
                 });
             return;
         }
         if (resolvedDownloadUrl) {
             downloadFileUrl(resolvedDownloadUrl, { fallbackFileName: `${Manifest.Id}.cipx` })
-                .then(res => setChecksumInfo(res))
+                .then(res => { setChecksumInfo(res); setIsDownloading(false); })
                 .catch(() => {
                     window.location.href = resolvedDownloadUrl;
+                    setIsDownloading(false);
                 });
+        } else {
+            setIsDownloading(false);
         }
     };
 
@@ -372,7 +389,29 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
         e.stopPropagation();
         navigator.clipboard.writeText(Manifest.Id).then(() => {
             setCopied(true);
+            dispatchToast(
+                <Toast>
+                    <ToastTitle>Copied</ToastTitle>
+                    <ToastBody>Plugin ID has been copied to clipboard.</ToastBody>
+                </Toast>,
+                { intent: 'success' }
+            );
             window.setTimeout(() => setCopied(false), 1500);
+        }).catch(() => { });
+    };
+
+    const handleCopyLink = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const url = `${window.location.origin}/plugin/${Manifest.Id}`;
+        navigator.clipboard.writeText(url).then(() => {
+            dispatchToast(
+                <Toast>
+                    <ToastTitle>Copied</ToastTitle>
+                    <ToastBody>Plugin link has been copied to clipboard.</ToastBody>
+                </Toast>,
+                { intent: 'success' }
+            );
         }).catch(() => { });
     };
 
@@ -508,34 +547,63 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                         }
                     }}
                 >
-                    <Card
-                        className={mergeClasses(styles.card, isTouchExpanded && styles.cardTouchExpanded)}
-                        ref={cardRef}
-                        onMouseMove={(e) => {
-                            if (window.matchMedia("(hover: none)").matches) return;
-                            handleMouseMove(e);
-                        }}
-                        onMouseLeave={() => {
-                            if (window.matchMedia("(hover: none)").matches) return;
-                            if (!isTouchExpanded) setIsHovering(false);
-                        }}
-                        style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}
+                    <Tilt
+                        tiltMaxAngleX={8}
+                        tiltMaxAngleY={8}
+                        perspective={1000}
+                        scale={1.03}
+                        transitionSpeed={400}
+                        glareEnable={false}
+                        tiltReverse={true}
+                        style={{ width: '100%', height: '100%', minHeight: baseHeight ? `${baseHeight}px` : 'auto' }}
                     >
+                        <Card
+                            className={mergeClasses(styles.card, isTouchExpanded && styles.cardTouchExpanded)}
+                            ref={cardRef}
+                            onMouseMove={(e) => {
+                                if (window.matchMedia("(hover: none)").matches) return;
+                                handleMouseMove(e);
+                            }}
+                            onMouseLeave={() => {
+                                if (window.matchMedia("(hover: none)").matches) return;
+                                if (!isTouchExpanded) setIsHovering(false);
+                            }}
+                            style={{ viewTransitionName: `card-box-${transitionId}` } as React.CSSProperties}
+                        >
                         <CardHeader
                             image={
-                                <div style={{ viewTransitionName: `avatar-img-${transitionId}` } as React.CSSProperties}>
+                                <div style={{ viewTransitionName: `avatar-img-${transitionId}`, position: 'relative' } as React.CSSProperties}>
+                                    {/* Inline skeleton/placeholder using pure CSS */}
+                                    {!iconSrc && (
+                                        <div style={{ position: 'absolute', inset: 0, backgroundColor: tokens.colorNeutralBackground3, borderRadius: tokens.borderRadiusMedium, animation: 'pulse 1.5s infinite ease-in-out' }} />
+                                    )}
                                     <Avatar
                                         image={iconSrc ? { src: iconSrc } : undefined}
                                         name={Manifest.Name}
                                         shape="square"
                                         size={48}
+                                        style={{ opacity: iconSrc ? 1 : 0.8, transition: 'opacity 0.3s' }}
                                     />
+                                    <style jsx>{`
+                                        @keyframes pulse {
+                                            0% { opacity: 0.6; }
+                                            50% { opacity: 1; }
+                                            100% { opacity: 0.6; }
+                                        }
+                                    `}</style>
                                 </div>
                             }
                             header={
-                                <Text weight="semibold" size={400} as="h3" className={styles.truncate} style={{ margin: 0, display: 'block', viewTransitionName: `title-text-${transitionId}` } as React.CSSProperties}>
-                                    {Manifest.Name}
-                                </Text>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                    <Text weight="semibold" size={400} as="h3" className={styles.truncate} style={{ margin: 0, viewTransitionName: `title-text-${transitionId}` } as React.CSSProperties}>
+                                        {Manifest.Name}
+                                    </Text>
+                                    {isNewOrUpdated && (
+                                        <div style={{ backgroundColor: tokens.colorBrandBackground2, color: tokens.colorBrandForeground2, padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                            NEW
+                                        </div>
+                                    )}
+                                </div>
                             }
                             description={
                                 <div style={{ display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
@@ -555,6 +623,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                             <div className={styles.hoverIdRow}>
                                 <span className={styles.hoverId} title={Manifest.Id}>{Manifest.Id}</span>
                                 <Button
+                                    aria-label={copied ? t('copied') : t('copyId')}
                                     appearance="subtle"
                                     icon={copied ? <CheckmarkRegular /> : <CopyRegular />}
                                     className={styles.copyButton}
@@ -563,7 +632,19 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                 />
                             </div>
                         </div>
-                        <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Button
+                                aria-label="Copy plugin link"
+                                appearance="subtle"
+                                icon={<ShareRegular />}
+                                className={mergeClasses(styles.copyButton, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)}
+                                onClick={handleCopyLink}
+                                title="Copy plugin link"
+                                size="small"
+                                style={{ color: tokens.colorNeutralForeground3 }}
+                            />
+                            <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
+                        </div>
                         <CardFooter style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
                             <div className={styles.statsRow} style={{ marginTop: 0 }}>
                                 <div className={styles.stat} title={t('downloads')}>
@@ -592,10 +673,11 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                             appearance="outline"
                                             size="small"
                                             className={mergeClasses(styles.actionButton, styles.downloadButton)}
-                                            icon={<ArrowDownloadRegular />}
+                                            icon={isDownloading ? <CheckmarkRegular className="animate-pulse" /> : <ArrowDownloadRegular />}
                                             onClick={handleDownloadClick}
+                                            disabled={isDownloading}
                                         >
-                                            {t('download')}
+                                            {isDownloading ? 'Downloading...' : t('download')}
                                         </Button>
                                     </>
                                 ) : (
@@ -604,15 +686,17 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                         size="small"
                                         className={mergeClasses(styles.actionButton, styles.downloadButton)}
                                         style={{ flex: 1 }}
-                                        icon={<ArrowDownloadRegular />}
+                                        icon={isDownloading ? <CheckmarkRegular className="animate-pulse" /> : <ArrowDownloadRegular />}
                                         onClick={handleDownloadClick}
+                                        disabled={isDownloading}
                                     >
-                                        {fileSizeStr || t('download')}
+                                        {isDownloading ? 'Downloading...' : fileSizeStr || t('download')}
                                     </Button>
                                 )}
                             </div>
                         </CardFooter>
-                    </Card>
+                        </Card>
+                    </Tilt>
                 </Link>
                 <ChecksumDialog info={checksumInfo} onClose={() => setChecksumInfo(null)} />
             </div>

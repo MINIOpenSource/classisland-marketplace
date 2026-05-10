@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
 import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
+import { useToastController, Toast, ToastTitle, ToastBody } from '@fluentui/react-components';
 
 export interface DownloadTask {
     id: string; // unique internally, e.g. timestamp
@@ -50,9 +51,13 @@ const TASKS_CACHE_KEY = 'cipx_download_tasks';
 export function DownloadProvider({ children }: { children: React.ReactNode }) {
     const [tasks, setTasks] = useState<DownloadTask[]>([]);
     const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
+    const { dispatchToast } = useToastController('global-toaster');
 
     // Load persisted tasks on mount
+    // Load persisted tasks on mount (disable lint because this is intended one-time initialization)
+
     useEffect(() => {
+        let isMounted = true;
         try {
             const saved = localStorage.getItem(TASKS_CACHE_KEY);
             if (saved) {
@@ -63,9 +68,11 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                     }
                     return t;
                 });
-                setTasks(loaded);
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+                if (isMounted) setTasks(loaded);
             }
         } catch { }
+        return () => { isMounted = false; };
     }, []);
 
     // Save tasks on change
@@ -146,7 +153,8 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const addTask = (pluginId: string, pluginName: string, version: string, isManifest: boolean, url: string) => {
+
+    const addTask = useCallback((pluginId: string, pluginName: string, version: string, isManifest: boolean, url: string) => {
         const id = Date.now().toString() + Math.random().toString(36).substring(2, 7);
         const newTask: DownloadTask = {
             id,
@@ -159,8 +167,17 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
             status: 'downloading'
         };
         setTasks(prev => [newTask, ...prev]);
-        runTask(newTask);
-    };
+
+        setTimeout(() => runTask(newTask), 0);
+
+        dispatchToast(
+            <Toast>
+                <ToastTitle>Download Started</ToastTitle>
+                <ToastBody>Downloading {pluginName} v{version}</ToastBody>
+            </Toast>,
+            { intent: 'info' }
+        );
+    }, [dispatchToast]);
 
     const pauseTask = useCallback((id: string) => {
         setTasks(prev => {
