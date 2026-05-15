@@ -1,6 +1,7 @@
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LanguageProvider } from '@/components/LanguageProvider';
 import { NodeSpeedTest } from '@/components/NodeSpeedTest';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 import '@/app/globals.css';
 import type { Metadata } from 'next';
 
@@ -27,6 +28,7 @@ export default function RootLayout({
             <body suppressHydrationWarning>
                 <LanguageProvider>
                     <ThemeProvider>
+                        <LoadingOverlay />
                         <NodeSpeedTest />
                         {children}
                     </ThemeProvider>
