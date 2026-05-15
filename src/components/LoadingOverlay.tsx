@@ -1,16 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Spinner, makeStyles, tokens, mergeClasses } from '@fluentui/react-components';
+import { Spinner, makeStyles, mergeClasses } from '@fluentui/react-components';
 
 const useStyles = makeStyles({
     overlay: {
         position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        backgroundColor: tokens.colorNeutralBackground1,
+        inset: 0,
+        width: '100%',
+        height: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -42,8 +40,21 @@ export function LoadingOverlay() {
 
     // We render it directly on the client side during SSR it will also output this HTML
     // covering the screen until React hydrates and the useEffect triggers.
+    // We inject a tiny inline style to dynamically read the exact background color from
+    // the system preference or `.dark` class (if hydration happened but the class was toggled)
+    // so it perfectly matches Fluent UI's tokens.
     return (
-        <div className={mergeClasses(styles.overlay, !isLoading && styles.hidden)}>
+        <div
+            className={mergeClasses(styles.overlay, !isLoading && styles.hidden)}
+            style={{ backgroundColor: 'var(--loading-overlay-bg, #ffffff)' }}
+        >
+            <style dangerouslySetInnerHTML={{ __html: `
+                :root { --loading-overlay-bg: #ffffff; }
+                :root.dark { --loading-overlay-bg: #292929; }
+                @media (prefers-color-scheme: dark) {
+                    :root:not(.light) { --loading-overlay-bg: #292929; }
+                }
+            ` }} />
             <Spinner size="large" appearance="primary" label="Loading..." />
         </div>
     );
