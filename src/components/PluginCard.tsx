@@ -658,19 +658,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                     <Spinner size="extra-tiny" appearance="primary" />
                                 </div>
                             ) : (
-                                <>
-                                    <Button
-                                        aria-label="Copy plugin link"
-                                        appearance="subtle"
-                                        icon={<ShareRegular />}
-                                        className={mergeClasses(styles.copyButton, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)}
-                                        onClick={handleCopyLink}
-                                        title="Copy plugin link"
-                                        size="small"
-                                        style={{ color: tokens.colorNeutralForeground3 }}
-                                    />
-                                    <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
-                                </>
+                                <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
                             )}
                         </div>
                         <CardFooter style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
@@ -721,6 +709,16 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                         {isDownloading ? 'Downloading...' : fileSizeStr || t('download')}
                                     </Button>
                                 )}
+                                <Button
+                                    aria-label="Copy plugin link"
+                                    appearance="outline"
+                                    icon={<ShareRegular />}
+                                    onClick={handleCopyLink}
+                                    title="Copy plugin link"
+                                    size="small"
+                                    className={styles.actionButton}
+                                    style={{ minWidth: 'auto', width: '32px', padding: 0 }}
+                                />
                             </div>
                         </CardFooter>
                         </Card>
