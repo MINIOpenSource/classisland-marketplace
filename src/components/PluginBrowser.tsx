@@ -20,6 +20,7 @@ const useStyles = makeStyles({
         backgroundColor: 'transparent',
     },
     toolbar: {
+        position: 'relative',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -81,14 +82,20 @@ const useStyles = makeStyles({
         color: tokens.colorNeutralForeground4,
     },
     luckyButtonWrapper: {
-        marginLeft: 'auto',
+        position: 'absolute',
+        right: '16px',
+        bottom: '13px',
+        display: 'none',
+        '@media (max-width: 720px)': {
+            display: 'flex',
+        }
+    },
+    luckyButtonDesktopWrapper: {
         overflow: 'hidden',
-        /* Default to left of sortGroup on desktop via normal flex flow, right-aligned. */
         display: 'flex',
         justifyContent: 'flex-end',
         '@media (max-width: 720px)': {
-            /* On mobile, toolbar breaks line, make this wrap below input but float right */
-            width: '100%',
+            display: 'none',
         }
     },
     luckyButton: {
@@ -108,9 +115,6 @@ const useStyles = makeStyles({
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        '@media (max-width: 720px)': {
-            order: 1,
-        }
     }
 });
 
@@ -256,8 +260,30 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
                         }
                         className={styles.searchInput}
                     />
+                    <div className={styles.luckyButtonWrapper}>
+                        <AnimatePresence>
+                            {!search && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                                >
+                                    <Button
+                                        appearance="outline"
+                                        icon={isLuckyNavigating ? <Spinner size="extra-tiny" appearance="primary" /> : <WandRegular />}
+                                        onClick={handleFeelingLucky}
+                                        disabled={sortedPlugins.length === 0 || isLuckyNavigating}
+                                        className={styles.luckyButton}
+                                        title={t('feelingLucky')}
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
                     <div className={styles.toolbarRight}>
-                        <div className={styles.luckyButtonWrapper}>
+                        <div className={styles.luckyButtonDesktopWrapper}>
                             <AnimatePresence>
                                 {!search && (
                                     <motion.div
