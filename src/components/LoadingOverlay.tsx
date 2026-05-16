@@ -45,13 +45,31 @@ export function LoadingOverlay() {
     return (
         <div
             className={mergeClasses(styles.overlay, !isLoading && styles.hidden)}
-            style={{ backgroundColor: 'var(--loading-overlay-bg, #ffffff)' }}
+            style={{
+                backgroundColor: 'var(--loading-overlay-bg, #ffffff)',
+                color: 'var(--loading-overlay-text, #242424)',
+                // Overriding FluentUI Spinner tokens locally before React hydrates them
+                '--colorBrandForeground1': 'var(--loading-overlay-spinner, #0f6cbd)',
+                '--colorNeutralForeground2': 'var(--loading-overlay-text, #242424)'
+            } as React.CSSProperties}
         >
             <style dangerouslySetInnerHTML={{ __html: `
-                :root { --loading-overlay-bg: #ffffff; }
-                :root.dark { --loading-overlay-bg: #292929; }
+                :root {
+                    --loading-overlay-bg: #ffffff;
+                    --loading-overlay-text: #242424;
+                    --loading-overlay-spinner: #0f6cbd;
+                }
+                :root.dark {
+                    --loading-overlay-bg: #292929;
+                    --loading-overlay-text: #ffffff;
+                    --loading-overlay-spinner: #479ef5;
+                }
                 @media (prefers-color-scheme: dark) {
-                    :root:not(.light) { --loading-overlay-bg: #292929; }
+                    :root:not(.light) {
+                        --loading-overlay-bg: #292929;
+                        --loading-overlay-text: #ffffff;
+                        --loading-overlay-spinner: #479ef5;
+                    }
                 }
             ` }} />
             <Spinner size="large" appearance="primary" label="Loading..." />
