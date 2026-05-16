@@ -4,8 +4,9 @@ import { PluginCard, PluginData } from '@/components/PluginCard';
 import { PluginGrid } from '@/components/PluginGrid';
 import { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { Button, makeStyles, tokens, Text, Input } from '@fluentui/react-components';
-import { SearchRegular, ArrowUpRegular, ArrowDownRegular, DismissRegular, DocumentSearchRegular } from '@fluentui/react-icons';
+import { SearchRegular, ArrowUpRegular, ArrowDownRegular, DismissRegular, DocumentSearchRegular, WandRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 
 const useStyles = makeStyles({
     toolbarShell: {
@@ -77,6 +78,7 @@ const useStyles = makeStyles({
 
 export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
     const styles = useStyles();
+    const router = useRouter();
     const t = useTranslations('Index');
     const [sortMethod, setSortMethod] = useState<'name' | 'downloads' | 'stars'>('downloads');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -136,6 +138,14 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
         return copy;
     }, [filteredPlugins, sortMethod, sortOrder]);
 
+    const handleFeelingLucky = () => {
+        if (sortedPlugins.length > 0) {
+            const randomIndex = Math.floor(Math.random() * sortedPlugins.length);
+            const randomPlugin = sortedPlugins[randomIndex];
+            router.push(`/plugin/${randomPlugin.Manifest.Id}`);
+        }
+    };
+
     return (
         <div>
             <div className={styles.toolbarShell}>
@@ -157,6 +167,14 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
                         className={styles.searchInput}
                     />
                     <div className={styles.toolbarRight}>
+                        <Button
+                            appearance="subtle"
+                            icon={<WandRegular />}
+                            onClick={handleFeelingLucky}
+                            disabled={sortedPlugins.length === 0}
+                        >
+                            手气不错
+                        </Button>
                         <Text weight="semibold" size={300}>{t('sortBy')}</Text>
                         <div className={styles.sortGroup}>
                             <Button

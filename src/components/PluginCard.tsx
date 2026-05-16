@@ -13,13 +13,14 @@ import {
     useToastController,
     Toast,
     ToastTitle,
-    ToastBody
+    ToastBody,
+    Spinner
 } from '@fluentui/react-components';
 import { ArrowDownloadRegular, StarRegular, OpenRegular, CopyRegular, CheckmarkRegular, ShareRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useInView } from 'react-intersection-observer';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { downloadCipxByManifest, downloadFileUrl } from '@/utils/cipxDownloader';
 import { ChecksumDialog, ChecksumInfo } from './ChecksumDialog';
@@ -310,9 +311,26 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
     const delayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
     const resolvedDownloadUrl = plugin.LocalDownloadUrl || plugin.DownloadUrl;
+    const [isNavigating, setIsNavigating] = useState(false);
+    const pathname = usePathname();
     const [checksumInfo, setChecksumInfo] = useState<ChecksumInfo | null>(null);
     const [isTouchExpanded, setIsTouchExpanded] = useState(false);
     const { dispatchToast } = useToastController('global-toaster');
+
+    // Use an early return equivalent effect to clear state asynchronously to avoid setting state during render
+    useEffect(() => {
+        let isMounted = true;
+
+        // Reset navigation state when pathname changes (meaning navigation completed)
+        const timeout = setTimeout(() => {
+            if (isMounted) setIsNavigating(false);
+        }, 0);
+
+        return () => {
+            isMounted = false;
+            clearTimeout(timeout);
+        };
+    }, [pathname]);
 
     useEffect(() => {
         if (inView) {
@@ -544,6 +562,8 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                             e.preventDefault();
                             setIsTouchExpanded(true);
                             setIsHovering(true);
+                        } else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button !== 1) {
+                            setIsNavigating(true);
                         }
                     }}
                 >
@@ -633,17 +653,13 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                             </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Button
-                                aria-label="Copy plugin link"
-                                appearance="subtle"
-                                icon={<ShareRegular />}
-                                className={mergeClasses(styles.copyButton, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)}
-                                onClick={handleCopyLink}
-                                title="Copy plugin link"
-                                size="small"
-                                style={{ color: tokens.colorNeutralForeground3 }}
-                            />
-                            <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
+                            {isNavigating ? (
+                                <div className={styles.hoverOpenIcon} style={{ opacity: 1, transform: 'scale(1)', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Spinner size="extra-tiny" appearance="primary" />
+                                </div>
+                            ) : (
+                                <OpenRegular className={mergeClasses(styles.hoverOpenIcon, isHovering ? styles.hoverOpenIconVisible : styles.hoverOpenIconHidden)} />
+                            )}
                         </div>
                         <CardFooter style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
                             <div className={styles.statsRow} style={{ marginTop: 0 }}>
@@ -693,6 +709,16 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                                         {isDownloading ? 'Downloading...' : fileSizeStr || t('download')}
                                     </Button>
                                 )}
+                                <Button
+                                    aria-label="Copy plugin link"
+                                    appearance="outline"
+                                    icon={<ShareRegular />}
+                                    onClick={handleCopyLink}
+                                    title="Copy plugin link"
+                                    size="small"
+                                    className={styles.actionButton}
+                                    style={{ minWidth: 'auto', width: '32px', padding: 0 }}
+                                />
                             </div>
                         </CardFooter>
                         </Card>
