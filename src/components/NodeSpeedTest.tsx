@@ -82,7 +82,7 @@ export function NodeSpeedTest() {
             const ping = async (url: string) => {
                 const start = Date.now();
                 try {
-                    // Fetch index or manifest to test latency
+                    // Fetch manifest to test latency
                     await fetch(`${url}/manifest.json?t=${start}`, { mode: 'no-cors', cache: 'no-store' });
                     return Date.now() - start;
                 } catch {
@@ -90,16 +90,32 @@ export function NodeSpeedTest() {
                 }
             };
 
-            await Promise.all(ENDPOINTS.map(async (ep) => {
-                const p = await ping(ep.url);
-                if (currentOrigin.includes(ep.url.replace('https://', ''))) {
-                    currentPing = Math.min(p, currentPing); // It's possible we match but have real ping
-                } else {
-                    if (p < Infinity) {
-                        results.push({ ...ep, ping: p });
-                    }
+            // Warm-up connections simultaneously
+            await Promise.allSettled(ENDPOINTS.map(ep => ping(ep.url)));
+
+            // Measure sequentially (one by one), 3 times each
+            for (const ep of ENDPOINTS) {
+                const pings = [];
+                for (let i = 0; i < 3; i++) {
+                    pings.push(await ping(ep.url));
                 }
-            }));
+
+                // If all failed, it's Infinity
+                if (pings.every(p => p === Infinity)) {
+                    continue;
+                }
+
+                // Sort pings to easily remove min and max
+                pings.sort((a, b) => a - b);
+                // Extract the middle value (index 1)
+                const medianPing = pings[1];
+
+                if (currentOrigin.includes(ep.url.replace('https://', ''))) {
+                    currentPing = Math.min(medianPing, currentPing);
+                } else if (medianPing < Infinity) {
+                    results.push({ ...ep, ping: medianPing });
+                }
+            }
 
             // if we couldn't match origin (e.g. testing locally), just treat currentPing as local
             if (currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1')) {

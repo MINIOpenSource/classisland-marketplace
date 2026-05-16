@@ -1,6 +1,6 @@
 {
   "name": "classisland-marketplace",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "scripts": {
     "dev": "node scripts/fetch-commits.mjs && node scripts/generate-speedtest.mjs && next dev",
@@ -9,17 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@fluentui/react-components": "^9.73.1",
-    "@fluentui/react-icons": "^2.0.319",
+    "@fluentui/react-components": "^9.73.8",
+    "@fluentui/react-icons": "^2.0.326",
     "@resvg/resvg-js": "^2.6.2",
-    "@uiw/react-markdown-preview": "^5.1.5",
+    "@uiw/react-markdown-preview": "^5.2.0",
     "@vercel/og": "^0.11.1",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.5.17",
     "decode-ico": "^0.4.1",
     "framer-motion": "^12.38.0",
     "js-sha256": "^0.11.1",
     "next": "16.1.6",
-    "next-intl": "^4.8.3",
+    "next-intl": "^4.12.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-intersection-observer": "^10.0.3",
@@ -34,17 +34,17 @@
     "spark-md5": "^3.0.2"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/adm-zip": "^0.5.7",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^20.19.41",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/spark-md5": "^3.0.5",
-    "eslint": "^9",
+    "eslint": "^9.39.4",
     "eslint-config-next": "16.1.6",
-    "serve": "^14.1.0",
+    "serve": "^14.2.6",
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }
