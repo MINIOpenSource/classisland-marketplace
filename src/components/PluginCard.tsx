@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import {
     Card,
@@ -18,7 +19,7 @@ import {
 } from '@fluentui/react-components';
 import { ArrowDownloadRegular, StarRegular, OpenRegular, CopyRegular, CheckmarkRegular, ShareRegular } from '@fluentui/react-icons';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+
 import { useInView } from 'react-intersection-observer';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
@@ -278,6 +279,8 @@ export interface PluginData {
     LocalReadmeUrl?: string;
     DownloadCount: number;
     StarsCount: number;
+    Rating?: number;
+    RatingCount?: number;
     FileSize?: number;
     CachedIconFile?: string;
     CachedIconFileMin?: string;

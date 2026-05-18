@@ -236,7 +236,7 @@ export function PluginBrowser({ plugins }: { plugins: PluginData[] }) {
                 localStorage.setItem('lucky_history', JSON.stringify(history));
             } catch { }
 
-            router.push(`/plugin/${selectedPlugin.Manifest.Id}`);
+            router.push(typeof window !== 'undefined' && window.location.pathname.startsWith('/v2') ? `/v2/plugin/${selectedPlugin.Manifest.Id}` : `/plugin/${selectedPlugin.Manifest.Id}`);
         }
     };
 
