@@ -41,7 +41,7 @@ export interface AdminVoteResponse {
     pagination: Pagination;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_WORKER_API_URL || 'https://classisland-marketplace-interactive-worker.miniopensource.workers.dev';
+const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_WORKER_API_URL || 'https://classisland-marketplace-interactive-worker.miniopensource.workers.dev');
 
 // --- Public APIs ---
 

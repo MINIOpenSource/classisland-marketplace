@@ -26,7 +26,7 @@ export function PluginGrid({ children }: { children: ReactNode }) {
     const styles = useStyles();
 
     return (
-        <div className={styles.grid}>
+        <div className={`${styles.grid} plugin-grid`}>
             {Children.map(children, (child) => child)}
         </div>
     );

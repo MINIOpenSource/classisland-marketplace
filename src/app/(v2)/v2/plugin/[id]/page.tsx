@@ -36,6 +36,7 @@ export default async function V2PluginDetailPage({ params }: { params: Promise<{
 
     const readmeNode = <MarkdownRenderer content={readmeContent} pluginDescription={plugin.Manifest?.Description} />;
 
+    const isCFPages = process.env.NEXT_PUBLIC_CF_PAGES === 'true' || process.env.CF_PAGES === '1' || process.env.CF_PAGES === 'true';
     const versionHistory = await getPluginVersionHistory(
         id,
         plugin.DownloadUrl,
@@ -55,6 +56,7 @@ export default async function V2PluginDetailPage({ params }: { params: Promise<{
             readmeNode={readmeNode}
             versionHistory={versionHistory}
             reviewsData={reviewsData}
+            isCFPages={isCFPages}
         />
     );
 }

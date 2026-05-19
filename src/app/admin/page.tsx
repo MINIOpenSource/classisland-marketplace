@@ -38,8 +38,7 @@ const useStyles = makeStyles({
 
 export default function AdminPage() {
     const styles = useStyles();
-    const [token, setToken] = useState('');
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const token = ''; // Handled by Cloudflare Access proxy natively
 
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(false);
@@ -51,14 +50,6 @@ export default function AdminPage() {
     const [selectedReview, setSelectedReview] = useState<Review | null>(null);
     const [votes, setVotes] = useState<Vote[]>([]);
     const [loadingVotes, setLoadingVotes] = useState(false);
-
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (token) {
-            setIsLoggedIn(true);
-            fetchData();
-        }
-    };
 
     const fetchData = async () => {
         if (!token) return;
@@ -76,10 +67,10 @@ export default function AdminPage() {
     };
 
     useEffect(() => {
-        if (isLoggedIn) {
+        if (true) {
             fetchData();
         }
-    }, [page, isLoggedIn]);
+    }, [page]);
 
     const handleDelete = async (uuid: string) => {
         if (!confirm('Are you sure you want to delete this review?')) return;
@@ -114,23 +105,7 @@ export default function AdminPage() {
         }
     };
 
-    if (!isLoggedIn) {
-        return (
-            <div style={{ maxWidth: '400px', margin: '100px auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <Text size={800} weight="bold">Admin Login</Text>
-                <Text>Please enter your Cloudflare Access JWT Assertion token to proceed.</Text>
-                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <Input
-                        value={token}
-                        onChange={(e, d) => setToken(d.value)}
-                        placeholder="eyJhb..."
-                        type="password"
-                    />
-                    <Button type="submit" appearance="primary">Login</Button>
-                </form>
-            </div>
-        );
-    }
+
 
     return (
         <div className={styles.container}>

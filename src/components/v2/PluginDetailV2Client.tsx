@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { PluginData } from '@/components/PluginCard';
 import { RatingSummary } from './RatingSummary';
 import { ReviewList } from './ReviewList';
+import { VersionHistory } from '@/components/VersionHistory';
 import { ReviewForm } from './ReviewForm';
 import { submitReview, ReviewResponse } from '@/services/interactiveAPI';
 
@@ -70,15 +71,16 @@ interface Props {
     readmeNode: React.ReactNode;
     versionHistory: any;
     reviewsData: ReviewResponse | null;
+    isCFPages: boolean;
 }
 
-export function PluginDetailV2Client({ plugin, readmeNode, versionHistory, reviewsData }: Props) {
+export function PluginDetailV2Client({ plugin, readmeNode, versionHistory, reviewsData, isCFPages }: Props) {
     const styles = useStyles();
     const router = useRouter();
     const [selectedTab, setSelectedTab] = useState<'readme' | 'reviews'>('readme');
 
     // Fallback logic for client side if needed
-    const isCFPages = process.env.NEXT_PUBLIC_CF_PAGES === 'true' || process.env.CF_PAGES === '1' || process.env.CF_PAGES === 'true';
+
 
     const [reviews, setReviews] = useState(reviewsData?.reviews || []);
     const [stats, setStats] = useState(reviewsData?.stats || {});
@@ -134,6 +136,11 @@ export function PluginDetailV2Client({ plugin, readmeNode, versionHistory, revie
                                 </div>
                             )}
                             <ReviewList reviews={reviews} isCFPages={isCFPages} />
+                        </div>
+                    )}
+                    {selectedTab === 'readme' && versionHistory && (
+                        <div style={{ marginTop: '24px' }}>
+                            <VersionHistory versions={versionHistory} currentVersion={plugin.Manifest.Version} />
                         </div>
                     )}
                 </div>

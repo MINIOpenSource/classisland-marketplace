@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 
+
 import {
     Card,
     CardHeader,
@@ -558,7 +559,7 @@ export function PluginCard({ plugin, index = 0 }: { plugin: PluginData; index?: 
                 }}
             >
                 <Link
-                    href={`/plugin/${Manifest.Id}`}
+                    href={pathname && pathname.startsWith('/v2') ? `/v2/plugin/${Manifest.Id}` : `/plugin/${Manifest.Id}`}
                     style={{ textDecoration: 'none', display: 'block' }}
                     onClick={(e) => {
                         if (window.matchMedia("(hover: none)").matches && !isTouchExpanded) {

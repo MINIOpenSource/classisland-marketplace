@@ -94,3 +94,23 @@ button {
     zoom: 0.8;
   }
 }
+/* V2 Marketplace Beta Overrides */
+.v2-marketplace-wrapper {
+    background: var(--colorNeutralBackground3);
+    padding: 32px;
+    border-radius: 16px;
+    box-shadow: inset 0px 4px 10px rgba(0,0,0,0.05);
+}
+.v2-marketplace-wrapper .plugin-grid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+    gap: 32px !important;
+}
+.v2-marketplace-wrapper .plugin-card {
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1);
+    border: none !important;
+    box-shadow: 0px 8px 24px rgba(0,0,0,0.08);
+}
+.v2-marketplace-wrapper .plugin-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0px 16px 40px rgba(0,0,0,0.12);
+}

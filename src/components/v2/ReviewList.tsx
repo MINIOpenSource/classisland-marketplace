@@ -86,6 +86,7 @@ export function ReviewList({ reviews, isCFPages }: ReviewListProps) {
             await voteReview(uuid, action, token);
             setVoted(prev => ({ ...prev, [uuid]: action }));
             (window as any).turnstile?.reset();
+
         } catch (e) {
             console.error(e);
         } finally {
