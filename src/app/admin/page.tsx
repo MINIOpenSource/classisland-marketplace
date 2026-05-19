@@ -38,7 +38,7 @@ const useStyles = makeStyles({
 
 export default function AdminPage() {
     const styles = useStyles();
-    const token = ''; // Handled by Cloudflare Access proxy natively
+    const token = '';
 
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export default function AdminPage() {
     const [loadingVotes, setLoadingVotes] = useState(false);
 
     const fetchData = async () => {
-        if (!token) return;
+        // No token required if running behind CF Access proxy.
         setLoading(true);
         try {
             const res = await adminFetchReviews(token, page, 20, filterPlugin || undefined, filterIp || undefined);

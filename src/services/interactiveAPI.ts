@@ -93,9 +93,7 @@ export async function adminFetchReviews(token: string, page = 1, limit = 20, plu
     if (ip) url.searchParams.append('ip', ip);
 
     const res = await fetch(url.toString(), {
-        headers: {
-            'CF-Access-JWT-Assertion': token
-        }
+        headers: token ? { 'CF-Access-JWT-Assertion': token } : {}
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to fetch admin reviews');
@@ -105,9 +103,7 @@ export async function adminFetchReviews(token: string, page = 1, limit = 20, plu
 export async function adminDeleteReview(uuid: string, token: string) {
     const res = await fetch(`${API_BASE}/api/admin/reviews/${uuid}`, {
         method: 'DELETE',
-        headers: {
-            'CF-Access-JWT-Assertion': token
-        }
+        headers: token ? { 'CF-Access-JWT-Assertion': token } : {}
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to delete review');
@@ -120,9 +116,7 @@ export async function adminFetchVotes(uuid: string, token: string, page = 1, lim
     url.searchParams.append('limit', limit.toString());
 
     const res = await fetch(url.toString(), {
-        headers: {
-            'CF-Access-JWT-Assertion': token
-        }
+        headers: token ? { 'CF-Access-JWT-Assertion': token } : {}
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to fetch admin votes');
@@ -132,9 +126,7 @@ export async function adminFetchVotes(uuid: string, token: string, page = 1, lim
 export async function adminDeleteVote(reviewUuid: string, ip: string, token: string) {
     const res = await fetch(`${API_BASE}/api/admin/votes/${reviewUuid}/${ip}`, {
         method: 'DELETE',
-        headers: {
-            'CF-Access-JWT-Assertion': token
-        }
+        headers: token ? { 'CF-Access-JWT-Assertion': token } : {}
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to delete vote');

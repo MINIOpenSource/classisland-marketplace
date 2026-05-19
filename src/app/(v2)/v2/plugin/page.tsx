@@ -47,7 +47,9 @@ export default async function V2PluginPage() {
             <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '24px' }}>Plugins (Beta)</h1>
             {data ? (
                 <div className="v2-marketplace-wrapper">
+                <div className="v2-marketplace-wrapper">
                 <PluginBrowser plugins={data.Plugins.filter((p: PluginData) => p.Manifest && p.Manifest.Id)} />
+            </div>
             </div>
             ) : (
                 <div style={{ padding: '48px', textAlign: 'center' }}>

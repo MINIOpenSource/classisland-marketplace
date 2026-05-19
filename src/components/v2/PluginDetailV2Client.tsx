@@ -22,12 +22,20 @@ const useStyles = makeStyles({
     },
     header: {
         display: 'flex',
+        flexDirection: 'column',
         gap: '24px',
-        alignItems: 'flex-start',
+        alignItems: 'center',
+        textAlign: 'center',
         backgroundColor: tokens.colorNeutralBackground1,
-        padding: '32px',
+        padding: '24px',
         borderRadius: tokens.borderRadiusLarge,
         boxShadow: tokens.shadow4,
+        '@media (min-width: 768px)': {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            textAlign: 'left',
+            padding: '32px',
+        }
     },
     icon: {
         width: '96px',
@@ -43,12 +51,21 @@ const useStyles = makeStyles({
     },
     actions: {
         display: 'flex',
+        flexDirection: 'column',
         gap: '12px',
+        width: '100%',
+        '@media (min-width: 768px)': {
+            flexDirection: 'row',
+            width: 'auto',
+        }
     },
     contentGrid: {
         display: 'grid',
-        gridTemplateColumns: '2fr 1fr',
+        gridTemplateColumns: '1fr',
         gap: '24px',
+        '@media (min-width: 768px)': {
+            gridTemplateColumns: '2fr 1fr',
+        }
     },
     mainColumn: {
         display: 'flex',
