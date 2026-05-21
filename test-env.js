@@ -1,1 +1,0 @@
-console.log(Object.keys(process.env).filter(k => k.includes('TENCENT') || k.includes('EDGE') || k.includes('PAGES') || k.includes('CF') || k.includes('VERCEL') || k.includes('GITHUB') || k.includes('CI')));

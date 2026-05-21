@@ -118,6 +118,11 @@ export function Footer() {
                     </Text>
                 )}
             </Link>
+            <div style={{ marginTop: '8px' }}>
+                <Link href="/v2" style={{ color: 'var(--colorBrandForegroundLink)', fontSize: '12px', textDecoration: 'none' }}>
+                    🚀 Try Marketplace 2.0 (Beta)
+                </Link>
+            </div>
         </footer>
     );
 }
