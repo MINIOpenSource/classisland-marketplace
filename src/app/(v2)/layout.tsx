@@ -1,22 +1,23 @@
-import { PageTransition } from '@/components/PageTransition';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
-import { TopBarProvider } from '@/components/TopBarProvider';
 
-export default function V2Layout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+import { PageTransition } from '@/components/PageTransition';
+
+export default function V2Layout({ children }: { children: React.ReactNode }) {
     return (
-        <TopBarProvider>
-            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--colorNeutralBackground2)' }}>
-                <Header />
-                <main style={{ padding: '0 24px 80px 24px', flexGrow: 1, maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-                    <PageTransition>{children}</PageTransition>
-                </main>
-                <Footer />
-            </div>
-        </TopBarProvider>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            {/* Custom V2 Header */}
+            <header style={{ padding: '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0,0,0,0.05)', background: 'white' }}>
+                <a href="/v2" style={{ fontWeight: '900', fontSize: '1.5rem', color: '#111', textDecoration: 'none', letterSpacing: '-0.5px' }}>
+                    ClassIsland <span style={{color: '#ff3366'}}>2.0</span>
+                </a>
+                <nav style={{ display: 'flex', gap: '2rem', fontWeight: 'bold' }}>
+                    <a href="/v2/plugin" style={{ color: '#666', textDecoration: 'none' }}>Plugins</a>
+                    <a href="/v2/theme" style={{ color: '#666', textDecoration: 'none' }}>Themes</a>
+                </nav>
+            </header>
+
+            <main style={{ flexGrow: 1 }}>
+                <PageTransition>{children}</PageTransition>
+            </main>
+        </div>
     );
 }
